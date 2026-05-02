@@ -1,0 +1,44 @@
+{
+  "name": "native-segment-any",
+  "type": "evaluation",
+  "segmentMemberships": {
+    "beta-users": true,
+    "internal-users": false
+  },
+  "ruleSet": {
+    "id": "tenant-a.segmented-banner",
+    "schemaVersion": "rule-kit.ruleset.v1",
+    "executionMode": "FIRST_MATCH",
+    "defaultResponse": false,
+    "rules": [
+      {
+        "id": "beta-or-internal",
+        "priority": 100,
+        "enabled": true,
+        "when": {
+          "all": [
+            {
+              "kind": "SEGMENT",
+              "segmentNames": ["beta-users", "internal-users"],
+              "match": "ANY",
+              "lookupRef": "userId"
+            }
+          ]
+        },
+        "then": {
+          "response": true
+        }
+      }
+    ]
+  },
+  "input": {
+    "userId": "user-123"
+  },
+  "traceMode": "VERBOSE",
+  "expected": {
+    "matchedRuleId": "beta-or-internal",
+    "defaultUsed": false,
+    "response": true,
+    "conditionKinds": ["SEGMENT"]
+  }
+}

@@ -1,0 +1,51 @@
+{
+  "name": "native-rollout-included",
+  "type": "evaluation",
+  "ruleSet": {
+    "id": "tenant-a.checkout-banner",
+    "schemaVersion": "rule-kit.ruleset.v1",
+    "executionMode": "FIRST_MATCH",
+    "defaultResponse": false,
+    "rules": [
+      {
+        "id": "all-users",
+        "priority": 100,
+        "enabled": true,
+        "when": {
+          "all": [
+            {
+              "kind": "FIELD",
+              "fieldRef": "platform",
+              "operator": "EQ",
+              "value": "android"
+            }
+          ]
+        },
+        "rollout": {
+          "percentage": 100,
+          "unitRef": "userId",
+          "algorithm": "MURMUR3_32_SALTED_V1",
+          "bucketCount": 100
+        },
+        "then": {
+          "response": true
+        }
+      }
+    ]
+  },
+  "input": {
+    "tenantId": "tenant-a",
+    "configName": "checkout-banner",
+    "splitSeed": "seed-1",
+    "userId": "user-123",
+    "platform": "android"
+  },
+  "traceMode": "VERBOSE",
+  "expected": {
+    "matchedRuleId": "all-users",
+    "defaultUsed": false,
+    "response": true,
+    "rolloutHashInput": "tenant-a:checkout-banner:all-users:seed-1:user-123",
+    "conditionKinds": ["FIELD"]
+  }
+}

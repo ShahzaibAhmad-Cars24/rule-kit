@@ -1,0 +1,34 @@
+{
+  "name": "native-validation-invalid-number",
+  "type": "validation",
+  "ruleSet": {
+    "id": "invalid-number",
+    "schemaVersion": "rule-kit.ruleset.v1",
+    "executionMode": "FIRST_MATCH",
+    "defaultResponse": false,
+    "rules": [
+      {
+        "id": "bad-age",
+        "priority": 100,
+        "enabled": true,
+        "when": {
+          "all": [
+            {
+              "kind": "FIELD",
+              "fieldRef": "age",
+              "operator": "GT",
+              "value": "not-a-number"
+            }
+          ]
+        },
+        "then": {
+          "response": true
+        }
+      }
+    ]
+  },
+  "expected": {
+    "valid": false,
+    "errorCodes": ["INVALID_NUMERIC_VALUE"]
+  }
+}

@@ -1,0 +1,209 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cars24.dev/rule-kit/ruleset-v1.schema.json",
+  "title": "Rule Kit RuleSet v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["id", "schemaVersion", "executionMode", "rules"],
+  "properties": {
+    "id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "schemaVersion": {
+      "type": "string",
+      "const": "rule-kit.ruleset.v1"
+    },
+    "executionMode": {
+      "type": "string",
+      "const": "FIRST_MATCH"
+    },
+    "defaultResponse": true,
+    "rules": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/rule"
+      }
+    }
+  },
+  "$defs": {
+    "rule": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "priority", "enabled", "when", "then"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "priority": {
+          "type": "integer"
+        },
+        "enabled": {
+          "type": "boolean"
+        },
+        "when": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["all"],
+          "properties": {
+            "all": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/condition"
+              }
+            }
+          }
+        },
+        "rollout": {
+          "$ref": "#/$defs/rollout"
+        },
+        "then": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["response"],
+          "properties": {
+            "response": true
+          }
+        }
+      }
+    },
+    "condition": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/fieldCondition"
+        },
+        {
+          "$ref": "#/$defs/segmentCondition"
+        },
+        {
+          "$ref": "#/$defs/dependencyCondition"
+        }
+      ]
+    },
+    "fieldCondition": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["fieldRef", "operator"],
+      "properties": {
+        "kind": {
+          "type": "string",
+          "const": "FIELD"
+        },
+        "fieldRef": {
+          "type": "string",
+          "minLength": 1
+        },
+        "operator": {
+          "type": "string",
+          "enum": [
+            "EQ",
+            "NEQ",
+            "GT",
+            "GTE",
+            "LT",
+            "LTE",
+            "BETWEEN",
+            "IN",
+            "NOT_IN",
+            "CONTAINS",
+            "NOT_CONTAINS",
+            "STARTS_WITH",
+            "ENDS_WITH",
+            "MATCHES",
+            "NOT_MATCHES",
+            "EXISTS",
+            "NOT_EXISTS",
+            "IS_TRUE",
+            "IS_FALSE",
+            "IN_CASE_INSENSITIVE",
+            "NOT_IN_CASE_INSENSITIVE",
+            "CONTAINS_CASE_INSENSITIVE",
+            "NOT_CONTAINS_CASE_INSENSITIVE",
+            "STARTS_WITH_CASE_INSENSITIVE",
+            "ENDS_WITH_CASE_INSENSITIVE"
+          ]
+        },
+        "value": true,
+        "valueTo": true
+      }
+    },
+    "segmentCondition": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "segmentNames", "match", "lookupRef"],
+      "properties": {
+        "kind": {
+          "type": "string",
+          "const": "SEGMENT"
+        },
+        "segmentNames": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "match": {
+          "type": "string",
+          "enum": ["ANY", "ALL"]
+        },
+        "lookupRef": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "dependencyCondition": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "ruleSetId", "expect"],
+      "properties": {
+        "kind": {
+          "type": "string",
+          "const": "DEPENDENCY"
+        },
+        "ruleSetId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "expect": {
+          "type": "string",
+          "enum": ["MATCHED", "DEFAULT_USED"]
+        }
+      }
+    },
+    "rollout": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["percentage", "unitRef", "algorithm", "bucketCount"],
+      "properties": {
+        "percentage": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "unitRef": {
+          "type": "string",
+          "minLength": 1
+        },
+        "algorithm": {
+          "type": "string",
+          "const": "MURMUR3_32_SALTED_V1"
+        },
+        "bucketCount": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "saltRefs": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,54 @@
+name: RuleKit CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+      - master
+
+jobs:
+  test:
+    name: Maven test on Java ${{ matrix.java }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        java:
+          - "17"
+          - "21"
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: ${{ matrix.java }}
+          cache: maven
+
+      - name: Run Maven tests
+        run: mvn -B clean test
+
+      - name: Validate JSON contract files
+        run: |
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+
+          paths = [
+              Path("rule-kit-contract/schemas/ruleset-v1.schema.json"),
+              Path("rule-kit-contract/schemas/evaluation-result-v1.schema.json"),
+              Path("rule-kit-contract/dynamic-config/operator-parity-v1.json"),
+              *Path("rule-kit-contract/test-vectors").glob("*.json"),
+              *Path("rule-kit-contract/test-vectors/native").glob("*.json"),
+              Path("docs/performance/artifacts/2026-05-02-rulekit-jmh/jmh-results.json"),
+              Path("docs/performance/artifacts/2026-05-02-rulekit-jmh/jmh-results-java17.json"),
+          ]
+
+          for path in paths:
+              with path.open(encoding="utf-8") as handle:
+                  json.load(handle)
+          PY

@@ -1,0 +1,67 @@
+{
+  "name": "native-dependency-gate",
+  "type": "evaluation",
+  "dependencies": [
+    {
+      "id": "tenant-a.checkout-enabled",
+      "schemaVersion": "rule-kit.ruleset.v1",
+      "executionMode": "FIRST_MATCH",
+      "defaultResponse": false,
+      "rules": [
+        {
+          "id": "enabled-for-city",
+          "priority": 100,
+          "enabled": true,
+          "when": {
+            "all": [
+              {
+                "kind": "FIELD",
+                "fieldRef": "city",
+                "operator": "EQ",
+                "value": "Gurgaon"
+              }
+            ]
+          },
+          "then": {
+            "response": true
+          }
+        }
+      ]
+    }
+  ],
+  "ruleSet": {
+    "id": "tenant-a.checkout-banner",
+    "schemaVersion": "rule-kit.ruleset.v1",
+    "executionMode": "FIRST_MATCH",
+    "defaultResponse": false,
+    "rules": [
+      {
+        "id": "depends-on-checkout",
+        "priority": 100,
+        "enabled": true,
+        "when": {
+          "all": [
+            {
+              "kind": "DEPENDENCY",
+              "ruleSetId": "tenant-a.checkout-enabled",
+              "expect": "MATCHED"
+            }
+          ]
+        },
+        "then": {
+          "response": true
+        }
+      }
+    ]
+  },
+  "input": {
+    "city": "Gurgaon"
+  },
+  "traceMode": "VERBOSE",
+  "expected": {
+    "matchedRuleId": "depends-on-checkout",
+    "defaultUsed": false,
+    "response": true,
+    "conditionKinds": ["DEPENDENCY"]
+  }
+}

@@ -1,0 +1,42 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cars24.dev/rule-kit/evaluation-result-v1.schema.json",
+  "title": "Rule Kit EvaluationResult v1",
+  "type": "object",
+  "required": ["defaultUsed", "response", "trace"],
+  "properties": {
+    "matchedRuleId": {
+      "type": ["string", "null"]
+    },
+    "defaultUsed": {
+      "type": "boolean"
+    },
+    "response": true,
+    "trace": {
+      "type": "object",
+      "required": ["mode", "schemaVersion", "evaluatorVersion", "ruleSetId", "evaluatedRuleCount", "rules"],
+      "properties": {
+        "mode": {
+          "type": "string",
+          "enum": ["COMPACT", "VERBOSE"]
+        },
+        "schemaVersion": {
+          "type": "string"
+        },
+        "evaluatorVersion": {
+          "type": "string"
+        },
+        "ruleSetId": {
+          "type": "string"
+        },
+        "evaluatedRuleCount": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "rules": {
+          "type": "array"
+        }
+      }
+    }
+  }
+}

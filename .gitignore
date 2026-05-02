@@ -1,0 +1,33 @@
+# Maven and Java build outputs
+target/
+**/target/
+*.class
+*.jar
+*.war
+*.ear
+
+# IDE and local machine files
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+
+# Logs and temporary files
+*.log
+*.tmp
+*.swp
+*.swo
+*.bak
+*.orig
+
+# Runtime and environment files
+.env
+.env.*
+!.env.example
+
+# Maven local tool caches, if added later
+.mvn/timing.properties
+
+# Generated benchmark/runtime artifacts
+hs_err_pid*
+replay_pid*

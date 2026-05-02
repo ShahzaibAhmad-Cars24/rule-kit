@@ -1,0 +1,39 @@
+{
+  "name": "no-match-default",
+  "ruleSet": {
+    "id": "pricing-rules",
+    "schemaVersion": "rule-kit.ruleset.v1",
+    "executionMode": "FIRST_MATCH",
+    "defaultResponse": "no-discount",
+    "rules": [
+      {
+        "id": "vip-discount",
+        "priority": 100,
+        "enabled": true,
+        "when": {
+          "all": [
+            {
+              "fieldRef": "customer.tier",
+              "operator": "EQ",
+              "value": "vip"
+            }
+          ]
+        },
+        "then": {
+          "response": "vip-discount"
+        }
+      }
+    ]
+  },
+  "input": {
+    "customer": {
+      "tier": "regular"
+    }
+  },
+  "traceMode": "COMPACT",
+  "expected": {
+    "matchedRuleId": null,
+    "defaultUsed": true,
+    "response": "no-discount"
+  }
+}

@@ -1,0 +1,39 @@
+id: sample-pricing-rules
+schemaVersion: rule-kit.ruleset.v1
+executionMode: FIRST_MATCH
+defaultResponse:
+  discountPercent: 0
+  reason: no-rule-matched
+rules:
+  - id: gold-gurgaon-high-cart
+    priority: 100
+    enabled: true
+    when:
+      all:
+        - fieldRef: plan
+          operator: EQ
+          value: gold
+        - fieldRef: city
+          operator: IN_CASE_INSENSITIVE
+          value:
+            - Gurgaon
+            - Delhi NCR
+        - fieldRef: cartTotal
+          operator: GTE
+          value: 5000
+    then:
+      response:
+        discountPercent: 15
+        reason: gold-gurgaon-high-cart
+  - id: gold-any-city
+    priority: 10
+    enabled: true
+    when:
+      all:
+        - fieldRef: plan
+          operator: EQ
+          value: gold
+    then:
+      response:
+        discountPercent: 5
+        reason: gold-any-city

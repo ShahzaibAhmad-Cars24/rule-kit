@@ -1,0 +1,255 @@
+{
+  "schemaVersion": "rule-kit.dynamic-config.operator-parity.v1",
+  "ruleKitRuleSetSchemaVersion": "rule-kit.ruleset.v1",
+  "operators": [
+    {
+      "dynamicConfigOperation": "IN_CASE_SENSITIVE",
+      "ruleKitOperator": "IN",
+      "example": {
+        "input": { "value": "A" },
+        "ruleSet": { "id": "op", "schemaVersion": "rule-kit.ruleset.v1", "executionMode": "FIRST_MATCH", "rules": [{ "id": "operator-match", "priority": 1, "enabled": true, "when": { "all": [{ "fieldRef": "value", "operator": "IN", "value": ["A", "B"] }] }, "then": { "response": true } }] }
+      }
+    },
+    {
+      "dynamicConfigOperation": "IN_CASE_IN_SENSITIVE",
+      "ruleKitOperator": "IN_CASE_INSENSITIVE",
+      "example": {
+        "input": { "value": "a" },
+        "ruleSet": { "id": "op", "schemaVersion": "rule-kit.ruleset.v1", "executionMode": "FIRST_MATCH", "rules": [{ "id": "operator-match", "priority": 1, "enabled": true, "when": { "all": [{ "fieldRef": "value", "operator": "IN_CASE_INSENSITIVE", "value": ["A", "B"] }] }, "then": { "response": true } }] }
+      }
+    },
+    {
+      "dynamicConfigOperation": "NOT_IN_CASE_SENSITIVE",
+      "ruleKitOperator": "NOT_IN",
+      "example": {
+        "input": { "value": "C" },
+        "ruleSet": { "id": "op", "schemaVersion": "rule-kit.ruleset.v1", "executionMode": "FIRST_MATCH", "rules": [{ "id": "operator-match", "priority": 1, "enabled": true, "when": { "all": [{ "fieldRef": "value", "operator": "NOT_IN", "value": ["A", "B"] }] }, "then": { "response": true } }] }
+      }
+    },
+    {
+      "dynamicConfigOperation": "NOT_IN_CASE_IN_SENSITIVE",
+      "ruleKitOperator": "NOT_IN_CASE_INSENSITIVE",
+      "example": {
+        "input": { "value": "c" },
+        "ruleSet": { "id": "op", "schemaVersion": "rule-kit.ruleset.v1", "executionMode": "FIRST_MATCH", "rules": [{ "id": "operator-match", "priority": 1, "enabled": true, "when": { "all": [{ "fieldRef": "value", "operator": "NOT_IN_CASE_INSENSITIVE", "value": ["A", "B"] }] }, "then": { "response": true } }] }
+      }
+    },
+    {
+      "dynamicConfigOperation": "STARTS_WITH_CASE_SENSITIVE",
+      "ruleKitOperator": "STARTS_WITH",
+      "example": {
+        "input": { "value": "Cars24" },
+        "ruleSet": { "id": "op", "schemaVersion": "rule-kit.ruleset.v1", "executionMode": "FIRST_MATCH", "rules": [{ "id": "operator-match", "priority": 1, "enabled": true, "when": { "all": [{ "fieldRef": "value", "operator": "STARTS_WITH", "value": "Cars" }] }, "then": { "response": true } }] }
+      }
+    },
+    {
+      "dynamicConfigOperation": "STARTS_WITH_CASE_IN_SENSITIVE",
+      "ruleKitOperator": "STARTS_WITH_CASE_INSENSITIVE",
+      "example": {
+        "input": { "value": "cars24" },
+        "ruleSet": { "id": "op", "schemaVersion": "rule-kit.ruleset.v1", "executionMode": "FIRST_MATCH", "rules": [{ "id": "operator-match", "priority": 1, "enabled": true, "when": { "all": [{ "fieldRef": "value", "operator": "STARTS_WITH_CASE_INSENSITIVE", "value": "Cars" }] }, "then": { "response": true } }] }
+      }
+    },
+    {
+      "dynamicConfigOperation": "ENDS_WITH_CASE_SENSITIVE",
+      "ruleKitOperator": "ENDS_WITH",
+      "example": {
+        "input": { "value": "Cars24" },
+        "ruleSet": { "id": "op", "schemaVersion": "rule-kit.ruleset.v1", "executionMode": "FIRST_MATCH", "rules": [{ "id": "operator-match", "priority": 1, "enabled": true, "when": { "all": [{ "fieldRef": "value", "operator": "ENDS_WITH", "value": "24" }] }, "then": { "response": true } }] }
+      }
+    },
+    {
+      "dynamicConfigOperation": "ENDS_WITH_CASE_IN_SENSITIVE",
+      "ruleKitOperator": "ENDS_WITH_CASE_INSENSITIVE",
+      "example": {
+        "input": { "value": "Cars24" },
+        "ruleSet": { "id": "op", "schemaVersion": "rule-kit.ruleset.v1", "executionMode": "FIRST_MATCH", "rules": [{ "id": "operator-match", "priority": 1, "enabled": true, "when": { "all": [{ "fieldRef": "value", "operator": "ENDS_WITH_CASE_INSENSITIVE", "value": "RS24" }] }, "then": { "response": true } }] }
+      }
+    },
+    {
+      "dynamicConfigOperation": "CONTAINS_CASE_SENSITIVE",
+      "ruleKitOperator": "CONTAINS",
+      "example": {
+        "input": { "value": "hello cars24" },
+        "ruleSet": { "id": "op", "schemaVersion": "rule-kit.ruleset.v1", "executionMode": "FIRST_MATCH", "rules": [{ "id": "operator-match", "priority": 1, "enabled": true, "when": { "all": [{ "fieldRef": "value", "operator": "CONTAINS", "value": "cars" }] }, "then": { "response": true } }] }
+      }
+    },
+    {
+      "dynamicConfigOperation": "CONTAINS_CASE_INSENSITIVE",
+      "ruleKitOperator": "CONTAINS_CASE_INSENSITIVE",
+      "example": {
+        "input": { "value": "hello CARS24" },
+        "ruleSet": { "id": "op", "schemaVersion": "rule-kit.ruleset.v1", "executionMode": "FIRST_MATCH", "rules": [{ "id": "operator-match", "priority": 1, "enabled": true, "when": { "all": [{ "fieldRef": "value", "operator": "CONTAINS_CASE_INSENSITIVE", "value": "cars" }] }, "then": { "response": true } }] }
+      }
+    },
+    {
+      "dynamicConfigOperation": "NOT_CONTAINS_CASE_SENSITIVE",
+      "ruleKitOperator": "NOT_CONTAINS",
+      "example": {
+        "input": { "value": "hello" },
+        "ruleSet": { "id": "op", "schemaVersion": "rule-kit.ruleset.v1", "executionMode": "FIRST_MATCH", "rules": [{ "id": "operator-match", "priority": 1, "enabled": true, "when": { "all": [{ "fieldRef": "value", "operator": "NOT_CONTAINS", "value": "cars" }] }, "then": { "response": true } }] }
+      }
+    },
+    {
+      "dynamicConfigOperation": "NOT_CONTAINS_CASE_INSENSITIVE",
+      "ruleKitOperator": "NOT_CONTAINS_CASE_INSENSITIVE",
+      "example": {
+        "input": { "value": "hello" },
+        "ruleSet": { "id": "op", "schemaVersion": "rule-kit.ruleset.v1", "executionMode": "FIRST_MATCH", "rules": [{ "id": "operator-match", "priority": 1, "enabled": true, "when": { "all": [{ "fieldRef": "value", "operator": "NOT_CONTAINS_CASE_INSENSITIVE", "value": "CARS" }] }, "then": { "response": true } }] }
+      }
+    },
+    {
+      "dynamicConfigOperation": "REGEX_MATCH",
+      "ruleKitOperator": "MATCHES",
+      "example": {
+        "input": { "value": "abc-123" },
+        "ruleSet": { "id": "op", "schemaVersion": "rule-kit.ruleset.v1", "executionMode": "FIRST_MATCH", "rules": [{ "id": "operator-match", "priority": 1, "enabled": true, "when": { "all": [{ "fieldRef": "value", "operator": "MATCHES", "value": "^[a-z]+-[0-9]+$" }] }, "then": { "response": true } }] }
+      }
+    },
+    {
+      "dynamicConfigOperation": "REGEX_NOT_MATCH",
+      "ruleKitOperator": "NOT_MATCHES",
+      "example": {
+        "input": { "value": "abc" },
+        "ruleSet": { "id": "op", "schemaVersion": "rule-kit.ruleset.v1", "executionMode": "FIRST_MATCH", "rules": [{ "id": "operator-match", "priority": 1, "enabled": true, "when": { "all": [{ "fieldRef": "value", "operator": "NOT_MATCHES", "value": "^[0-9]+$" }] }, "then": { "response": true } }] }
+      }
+    },
+    {
+      "dynamicConfigOperation": "GREATER_THAN",
+      "ruleKitOperator": "GT",
+      "example": {
+        "input": { "value": 11 },
+        "ruleSet": { "id": "op", "schemaVersion": "rule-kit.ruleset.v1", "executionMode": "FIRST_MATCH", "rules": [{ "id": "operator-match", "priority": 1, "enabled": true, "when": { "all": [{ "fieldRef": "value", "operator": "GT", "value": 10 }] }, "then": { "response": true } }] }
+      },
+      "edgeCases": [
+        {
+          "name": "invalid-actual-is-non-match",
+          "input": { "value": "abc" },
+          "ruleSet": { "id": "op", "schemaVersion": "rule-kit.ruleset.v1", "executionMode": "FIRST_MATCH", "defaultResponse": false, "rules": [{ "id": "operator-match", "priority": 1, "enabled": true, "when": { "all": [{ "fieldRef": "value", "operator": "GT", "value": -1 }] }, "then": { "response": true } }] },
+          "expected": { "defaultUsed": true, "matchedRuleId": null }
+        },
+        {
+          "name": "invalid-expected-is-validation-error",
+          "input": { "value": 5 },
+          "ruleSet": { "id": "op", "schemaVersion": "rule-kit.ruleset.v1", "executionMode": "FIRST_MATCH", "defaultResponse": false, "rules": [{ "id": "operator-match", "priority": 1, "enabled": true, "when": { "all": [{ "fieldRef": "value", "operator": "GT", "value": "abc" }] }, "then": { "response": true } }] },
+          "expected": { "validationError": "INVALID_NUMERIC_VALUE" }
+        }
+      ]
+    },
+    {
+      "dynamicConfigOperation": "LESS_THAN",
+      "ruleKitOperator": "LT",
+      "example": {
+        "input": { "value": 9 },
+        "ruleSet": { "id": "op", "schemaVersion": "rule-kit.ruleset.v1", "executionMode": "FIRST_MATCH", "rules": [{ "id": "operator-match", "priority": 1, "enabled": true, "when": { "all": [{ "fieldRef": "value", "operator": "LT", "value": 10 }] }, "then": { "response": true } }] }
+      },
+      "edgeCases": [
+        {
+          "name": "invalid-actual-is-non-match",
+          "input": { "value": "abc" },
+          "ruleSet": { "id": "op", "schemaVersion": "rule-kit.ruleset.v1", "executionMode": "FIRST_MATCH", "defaultResponse": false, "rules": [{ "id": "operator-match", "priority": 1, "enabled": true, "when": { "all": [{ "fieldRef": "value", "operator": "LT", "value": 1 }] }, "then": { "response": true } }] },
+          "expected": { "defaultUsed": true, "matchedRuleId": null }
+        }
+      ]
+    },
+    {
+      "dynamicConfigOperation": "GREATER_THAN_OR_EQUAL",
+      "ruleKitOperator": "GTE",
+      "example": {
+        "input": { "value": 10 },
+        "ruleSet": { "id": "op", "schemaVersion": "rule-kit.ruleset.v1", "executionMode": "FIRST_MATCH", "rules": [{ "id": "operator-match", "priority": 1, "enabled": true, "when": { "all": [{ "fieldRef": "value", "operator": "GTE", "value": 10 }] }, "then": { "response": true } }] }
+      },
+      "edgeCases": [
+        {
+          "name": "missing-actual-is-non-match",
+          "input": {},
+          "ruleSet": { "id": "op", "schemaVersion": "rule-kit.ruleset.v1", "executionMode": "FIRST_MATCH", "defaultResponse": false, "rules": [{ "id": "operator-match", "priority": 1, "enabled": true, "when": { "all": [{ "fieldRef": "value", "operator": "GTE", "value": 0 }] }, "then": { "response": true } }] },
+          "expected": { "defaultUsed": true, "matchedRuleId": null }
+        }
+      ]
+    },
+    {
+      "dynamicConfigOperation": "LESS_THAN_OR_EQUAL",
+      "ruleKitOperator": "LTE",
+      "example": {
+        "input": { "value": 10 },
+        "ruleSet": { "id": "op", "schemaVersion": "rule-kit.ruleset.v1", "executionMode": "FIRST_MATCH", "rules": [{ "id": "operator-match", "priority": 1, "enabled": true, "when": { "all": [{ "fieldRef": "value", "operator": "LTE", "value": 10 }] }, "then": { "response": true } }] }
+      },
+      "edgeCases": [
+        {
+          "name": "missing-actual-is-non-match",
+          "input": {},
+          "ruleSet": { "id": "op", "schemaVersion": "rule-kit.ruleset.v1", "executionMode": "FIRST_MATCH", "defaultResponse": false, "rules": [{ "id": "operator-match", "priority": 1, "enabled": true, "when": { "all": [{ "fieldRef": "value", "operator": "LTE", "value": 0 }] }, "then": { "response": true } }] },
+          "expected": { "defaultUsed": true, "matchedRuleId": null }
+        }
+      ]
+    },
+    {
+      "dynamicConfigOperation": "EQUALS",
+      "ruleKitOperator": "EQ",
+      "example": {
+        "input": { "value": "premium" },
+        "ruleSet": { "id": "op", "schemaVersion": "rule-kit.ruleset.v1", "executionMode": "FIRST_MATCH", "rules": [{ "id": "operator-match", "priority": 1, "enabled": true, "when": { "all": [{ "fieldRef": "value", "operator": "EQ", "value": "premium" }] }, "then": { "response": true } }] }
+      },
+      "edgeCases": [
+        {
+          "name": "boolean-string-does-not-match-boolean",
+          "input": { "value": "true" },
+          "ruleSet": { "id": "op", "schemaVersion": "rule-kit.ruleset.v1", "executionMode": "FIRST_MATCH", "defaultResponse": false, "rules": [{ "id": "operator-match", "priority": 1, "enabled": true, "when": { "all": [{ "fieldRef": "value", "operator": "EQ", "value": true }] }, "then": { "response": true } }] },
+          "expected": { "defaultUsed": true, "matchedRuleId": null }
+        },
+        {
+          "name": "uppercase-boolean-string-does-not-match-boolean",
+          "input": { "value": "TRUE" },
+          "ruleSet": { "id": "op", "schemaVersion": "rule-kit.ruleset.v1", "executionMode": "FIRST_MATCH", "defaultResponse": false, "rules": [{ "id": "operator-match", "priority": 1, "enabled": true, "when": { "all": [{ "fieldRef": "value", "operator": "EQ", "value": true }] }, "then": { "response": true } }] },
+          "expected": { "defaultUsed": true, "matchedRuleId": null }
+        }
+      ]
+    },
+    {
+      "dynamicConfigOperation": "NOT_EQUALS",
+      "ruleKitOperator": "NEQ",
+      "example": {
+        "input": { "value": "basic" },
+        "ruleSet": { "id": "op", "schemaVersion": "rule-kit.ruleset.v1", "executionMode": "FIRST_MATCH", "rules": [{ "id": "operator-match", "priority": 1, "enabled": true, "when": { "all": [{ "fieldRef": "value", "operator": "NEQ", "value": "premium" }] }, "then": { "response": true } }] }
+      },
+      "edgeCases": [
+        {
+          "name": "uppercase-boolean-string-differs-from-boolean",
+          "input": { "value": "TRUE" },
+          "ruleSet": { "id": "op", "schemaVersion": "rule-kit.ruleset.v1", "executionMode": "FIRST_MATCH", "defaultResponse": false, "rules": [{ "id": "operator-match", "priority": 1, "enabled": true, "when": { "all": [{ "fieldRef": "value", "operator": "NEQ", "value": true }] }, "then": { "response": true } }] }
+        }
+      ]
+    },
+    {
+      "dynamicConfigOperation": "IS_NULL",
+      "ruleKitOperator": "NOT_EXISTS",
+      "example": {
+        "input": {},
+        "ruleSet": { "id": "op", "schemaVersion": "rule-kit.ruleset.v1", "executionMode": "FIRST_MATCH", "rules": [{ "id": "operator-match", "priority": 1, "enabled": true, "when": { "all": [{ "fieldRef": "value", "operator": "NOT_EXISTS" }] }, "then": { "response": true } }] }
+      }
+    },
+    {
+      "dynamicConfigOperation": "IS_NOT_NULL",
+      "ruleKitOperator": "EXISTS",
+      "example": {
+        "input": { "value": "" },
+        "ruleSet": { "id": "op", "schemaVersion": "rule-kit.ruleset.v1", "executionMode": "FIRST_MATCH", "rules": [{ "id": "operator-match", "priority": 1, "enabled": true, "when": { "all": [{ "fieldRef": "value", "operator": "EXISTS" }] }, "then": { "response": true } }] }
+      }
+    },
+    {
+      "dynamicConfigOperation": "GATE_PASS",
+      "ruleKitOperator": "EQ",
+      "hostResolved": true,
+      "fieldPattern": "_gates.<configName>.matched",
+      "value": true
+    },
+    {
+      "dynamicConfigOperation": "GATE_FAIL",
+      "ruleKitOperator": "EQ",
+      "hostResolved": true,
+      "fieldPattern": "_gates.<configName>.matched",
+      "value": false
+    }
+  ]
+}

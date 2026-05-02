@@ -1,0 +1,2 @@
+rule-kit:
+  default-trace-mode: COMPACT

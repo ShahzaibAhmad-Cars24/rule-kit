@@ -1,0 +1,72 @@
+{
+  "name": "first-match-basic",
+  "ruleSet": {
+    "id": "pricing-rules",
+    "schemaVersion": "rule-kit.ruleset.v1",
+    "executionMode": "FIRST_MATCH",
+    "defaultResponse": {
+      "discountPercent": 0
+    },
+    "rules": [
+      {
+        "id": "standard-discount",
+        "priority": 10,
+        "enabled": true,
+        "when": {
+          "all": [
+            {
+              "fieldRef": "cart.total",
+              "operator": "GTE",
+              "value": 1000
+            }
+          ]
+        },
+        "then": {
+          "response": {
+            "discountPercent": 5
+          }
+        }
+      },
+      {
+        "id": "vip-discount",
+        "priority": 100,
+        "enabled": true,
+        "when": {
+          "all": [
+            {
+              "fieldRef": "customer.tier",
+              "operator": "EQ",
+              "value": "vip"
+            },
+            {
+              "fieldRef": "cart.total",
+              "operator": "GTE",
+              "value": 5000
+            }
+          ]
+        },
+        "then": {
+          "response": {
+            "discountPercent": 12
+          }
+        }
+      }
+    ]
+  },
+  "input": {
+    "customer": {
+      "tier": "vip"
+    },
+    "cart": {
+      "total": 6200
+    }
+  },
+  "traceMode": "VERBOSE",
+  "expected": {
+    "matchedRuleId": "vip-discount",
+    "defaultUsed": false,
+    "response": {
+      "discountPercent": 12
+    }
+  }
+}

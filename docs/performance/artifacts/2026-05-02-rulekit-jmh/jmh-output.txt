@@ -1,0 +1,141 @@
+# JMH version: 1.37
+# VM version: JDK 21.0.3, OpenJDK 64-Bit Server VM, 21.0.3+9-LTS
+# VM invoker: /Users/user/Library/Java/JavaVirtualMachines/corretto-21.0.3/Contents/Home/bin/java
+# VM options: <none>
+# Blackhole mode: compiler (auto-detected, use -Djmh.blackhole.autoDetect=false to disable)
+# Warmup: 3 iterations, 1 s each
+# Measurement: 5 iterations, 1 s each
+# Timeout: 10 min per iteration
+# Threads: 1 thread, will synchronize iterations
+# Benchmark mode: Throughput, ops/time
+# Benchmark: com.cars24.rulekit.benchmark.RuleKitEvaluatorBenchmark.coldRuleSetEvaluateCompact
+
+# Run progress: 0.00% complete, ETA 00:00:32
+# Fork: 1 of 1
+# Warmup Iteration   1: 568600.362 ops/s
+# Warmup Iteration   2: 795656.040 ops/s
+# Warmup Iteration   3: 802727.585 ops/s
+Iteration   1: 803223.569 ops/s
+Iteration   2: 794742.286 ops/s
+Iteration   3: 769098.508 ops/s
+Iteration   4: 774745.605 ops/s
+Iteration   5: 796042.897 ops/s
+
+
+Result "com.cars24.rulekit.benchmark.RuleKitEvaluatorBenchmark.coldRuleSetEvaluateCompact":
+  787570.573 ±(99.9%) 56916.861 ops/s [Average]
+  (min, avg, max) = (769098.508, 787570.573, 803223.569), stdev = 14781.128
+  CI (99.9%): [730653.712, 844487.435] (assumes normal distribution)
+
+
+# JMH version: 1.37
+# VM version: JDK 21.0.3, OpenJDK 64-Bit Server VM, 21.0.3+9-LTS
+# VM invoker: /Users/user/Library/Java/JavaVirtualMachines/corretto-21.0.3/Contents/Home/bin/java
+# VM options: <none>
+# Blackhole mode: compiler (auto-detected, use -Djmh.blackhole.autoDetect=false to disable)
+# Warmup: 3 iterations, 1 s each
+# Measurement: 5 iterations, 1 s each
+# Timeout: 10 min per iteration
+# Threads: 1 thread, will synchronize iterations
+# Benchmark mode: Throughput, ops/time
+# Benchmark: com.cars24.rulekit.benchmark.RuleKitEvaluatorBenchmark.compiledEvaluateCompactMatch
+
+# Run progress: 25.00% complete, ETA 00:00:24
+# Fork: 1 of 1
+# Warmup Iteration   1: 3003515.195 ops/s
+# Warmup Iteration   2: 3433612.690 ops/s
+# Warmup Iteration   3: 3430391.797 ops/s
+Iteration   1: 3259918.373 ops/s
+Iteration   2: 3412721.040 ops/s
+Iteration   3: 3433638.588 ops/s
+Iteration   4: 3437371.271 ops/s
+Iteration   5: 3385467.755 ops/s
+
+
+Result "com.cars24.rulekit.benchmark.RuleKitEvaluatorBenchmark.compiledEvaluateCompactMatch":
+  3385823.406 ±(99.9%) 282433.382 ops/s [Average]
+  (min, avg, max) = (3259918.373, 3385823.406, 3437371.271), stdev = 73347.053
+  CI (99.9%): [3103390.023, 3668256.788] (assumes normal distribution)
+
+
+# JMH version: 1.37
+# VM version: JDK 21.0.3, OpenJDK 64-Bit Server VM, 21.0.3+9-LTS
+# VM invoker: /Users/user/Library/Java/JavaVirtualMachines/corretto-21.0.3/Contents/Home/bin/java
+# VM options: <none>
+# Blackhole mode: compiler (auto-detected, use -Djmh.blackhole.autoDetect=false to disable)
+# Warmup: 3 iterations, 1 s each
+# Measurement: 5 iterations, 1 s each
+# Timeout: 10 min per iteration
+# Threads: 1 thread, will synchronize iterations
+# Benchmark mode: Throughput, ops/time
+# Benchmark: com.cars24.rulekit.benchmark.RuleKitEvaluatorBenchmark.compiledEvaluateCompactNoMatch
+
+# Run progress: 50.00% complete, ETA 00:00:16
+# Fork: 1 of 1
+# Warmup Iteration   1: 3190026.216 ops/s
+# Warmup Iteration   2: 3632478.422 ops/s
+# Warmup Iteration   3: 3676027.313 ops/s
+Iteration   1: 3718592.027 ops/s
+Iteration   2: 3668744.287 ops/s
+Iteration   3: 3695073.192 ops/s
+Iteration   4: 3715950.290 ops/s
+Iteration   5: 3628696.360 ops/s
+
+
+Result "com.cars24.rulekit.benchmark.RuleKitEvaluatorBenchmark.compiledEvaluateCompactNoMatch":
+  3685411.231 ±(99.9%) 144351.860 ops/s [Average]
+  (min, avg, max) = (3628696.360, 3685411.231, 3718592.027), stdev = 37487.720
+  CI (99.9%): [3541059.372, 3829763.091] (assumes normal distribution)
+
+
+# JMH version: 1.37
+# VM version: JDK 21.0.3, OpenJDK 64-Bit Server VM, 21.0.3+9-LTS
+# VM invoker: /Users/user/Library/Java/JavaVirtualMachines/corretto-21.0.3/Contents/Home/bin/java
+# VM options: <none>
+# Blackhole mode: compiler (auto-detected, use -Djmh.blackhole.autoDetect=false to disable)
+# Warmup: 3 iterations, 1 s each
+# Measurement: 5 iterations, 1 s each
+# Timeout: 10 min per iteration
+# Threads: 1 thread, will synchronize iterations
+# Benchmark mode: Throughput, ops/time
+# Benchmark: com.cars24.rulekit.benchmark.RuleKitEvaluatorBenchmark.compiledEvaluateVerboseMatch
+
+# Run progress: 75.00% complete, ETA 00:00:08
+# Fork: 1 of 1
+# Warmup Iteration   1: 2818755.812 ops/s
+# Warmup Iteration   2: 3140437.863 ops/s
+# Warmup Iteration   3: 3142070.261 ops/s
+Iteration   1: 3188247.165 ops/s
+Iteration   2: 3159190.095 ops/s
+Iteration   3: 3187913.780 ops/s
+Iteration   4: 3140170.123 ops/s
+Iteration   5: 3129077.030 ops/s
+
+
+Result "com.cars24.rulekit.benchmark.RuleKitEvaluatorBenchmark.compiledEvaluateVerboseMatch":
+  3160919.639 ±(99.9%) 104091.438 ops/s [Average]
+  (min, avg, max) = (3129077.030, 3160919.639, 3188247.165), stdev = 27032.216
+  CI (99.9%): [3056828.200, 3265011.077] (assumes normal distribution)
+
+
+# Run complete. Total time: 00:00:33
+
+REMEMBER: The numbers below are just data. To gain reusable insights, you need to follow up on
+why the numbers are the way they are. Use profilers (see -prof, -lprof), design factorial
+experiments, perform baseline and negative tests that provide experimental control, make sure
+the benchmarking environment is safe on JVM/OS/HW level, ask for reviews from the domain experts.
+Do not assume the numbers tell you what you want them to tell.
+
+NOTE: Current JVM experimentally supports Compiler Blackholes, and they are in use. Please exercise
+extra caution when trusting the results, look into the generated code to check the benchmark still
+works, and factor in a small probability of new VM bugs. Additionally, while comparisons between
+different JVMs are already problematic, the performance difference caused by different Blackhole
+modes can be very significant. Please make sure you use the consistent Blackhole mode for comparisons.
+
+Benchmark                                                  Mode  Cnt        Score        Error  Units
+RuleKitEvaluatorBenchmark.coldRuleSetEvaluateCompact      thrpt    5   787570.573 ±  56916.861  ops/s
+RuleKitEvaluatorBenchmark.compiledEvaluateCompactMatch    thrpt    5  3385823.406 ± 282433.382  ops/s
+RuleKitEvaluatorBenchmark.compiledEvaluateCompactNoMatch  thrpt    5  3685411.231 ± 144351.860  ops/s
+RuleKitEvaluatorBenchmark.compiledEvaluateVerboseMatch    thrpt    5  3160919.639 ± 104091.438  ops/s
+
+Benchmark result is saved to docs/performance/artifacts/2026-05-02-rulekit-jmh/jmh-results.json
