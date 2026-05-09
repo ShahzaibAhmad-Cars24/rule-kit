@@ -3,6 +3,7 @@ package com.cars24.rulekit.core.evaluation;
 import com.cars24.rulekit.core.model.ConditionDefinition;
 import com.cars24.rulekit.core.model.ConditionGroup;
 import com.cars24.rulekit.core.model.ConditionKind;
+import com.cars24.rulekit.core.model.ExecutionMode;
 import com.cars24.rulekit.core.model.RuleDefinition;
 import com.cars24.rulekit.core.model.RuleThen;
 import com.cars24.rulekit.core.operator.OperatorValueParser;
@@ -16,16 +17,27 @@ public final class CompiledRuleSet {
 
     private final String ruleSetId;
     private final String schemaVersion;
+    private final ExecutionMode executionMode;
     private final JsonNode defaultResponse;
     private final List<RuleDefinition> rules;
     private final List<CompiledRule> compiledRules;
 
+    /** Legacy constructor — defaults to FIRST_MATCH. */
     public CompiledRuleSet(String ruleSetId,
                            String schemaVersion,
                            JsonNode defaultResponse,
                            List<RuleDefinition> rules) {
+        this(ruleSetId, schemaVersion, ExecutionMode.FIRST_MATCH, defaultResponse, rules);
+    }
+
+    public CompiledRuleSet(String ruleSetId,
+                           String schemaVersion,
+                           ExecutionMode executionMode,
+                           JsonNode defaultResponse,
+                           List<RuleDefinition> rules) {
         this.ruleSetId = ruleSetId;
         this.schemaVersion = schemaVersion;
+        this.executionMode = executionMode != null ? executionMode : ExecutionMode.FIRST_MATCH;
         this.defaultResponse = deepCopy(defaultResponse);
         this.rules = copyRules(rules);
         this.compiledRules = this.rules.stream()
@@ -39,6 +51,10 @@ public final class CompiledRuleSet {
 
     public String schemaVersion() {
         return schemaVersion;
+    }
+
+    public ExecutionMode executionMode() {
+        return executionMode;
     }
 
     public JsonNode defaultResponse() {

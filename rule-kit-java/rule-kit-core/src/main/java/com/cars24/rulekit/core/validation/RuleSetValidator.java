@@ -43,8 +43,10 @@ public final class RuleSetValidator {
             ));
         }
 
-        if (ruleSet.executionMode() != ExecutionMode.FIRST_MATCH) {
-            errors.add(error(RuleKitExceptionCode.UNSUPPORTED_EXECUTION_MODE, "$.executionMode", "Only FIRST_MATCH is supported"));
+        if (ruleSet.executionMode() != ExecutionMode.FIRST_MATCH
+                && ruleSet.executionMode() != ExecutionMode.ALL_MATCHES) {
+            errors.add(error(RuleKitExceptionCode.UNSUPPORTED_EXECUTION_MODE, "$.executionMode",
+                    "executionMode must be FIRST_MATCH or ALL_MATCHES"));
         }
 
         if (ruleSet.rules() == null) {

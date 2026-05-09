@@ -5,6 +5,7 @@ import com.cars24.rulekit.core.exception.RuleKitExceptionCode;
 import com.cars24.rulekit.core.exception.RuleKitValidationException;
 import com.cars24.rulekit.core.model.ConditionDefinition;
 import com.cars24.rulekit.core.model.ConditionKind;
+import com.cars24.rulekit.core.model.ExecutionMode;
 import com.cars24.rulekit.core.model.RuleDefinition;
 import com.cars24.rulekit.core.model.RuleKitVersions;
 import com.cars24.rulekit.core.model.RuleSet;
@@ -87,42 +88,105 @@ public class RuleKitEvaluator {
             );
         }
 
+        try {
+            if (ruleSet.executionMode() == ExecutionMode.ALL_MATCHES) {
+                return evaluateAllMatches(ruleSet, input, resolvedTraceMode, resolvedOptions, session);
+            } else {
+                return evaluateFirstMatch(ruleSet, input, resolvedTraceMode, resolvedOptions, session);
+            }
+        } finally {
+            session.exit(ruleSet.ruleSetId());
+        }
+    }
+
+    /** FIRST_MATCH: stop at the first rule that fires. */
+    private EvaluationResult evaluateFirstMatch(CompiledRuleSet ruleSet,
+                                                JsonNode input,
+                                                TraceMode traceMode,
+                                                EvaluationOptions options,
+                                                EvaluationSession session) {
         List<RuleTrace> ruleTraces = new ArrayList<>();
         int evaluatedRuleCount = 0;
-        try {
-            for (CompiledRule rule : ruleSet.compiledRules()) {
-                evaluatedRuleCount++;
-                RuleEvaluation ruleEvaluation = evaluateRule(
-                        ruleSet,
-                        rule,
-                        input,
-                        resolvedTraceMode,
-                        resolvedOptions,
-                        session
+
+        for (CompiledRule rule : ruleSet.compiledRules()) {
+            evaluatedRuleCount++;
+            RuleEvaluation ruleEvaluation = evaluateRule(
+                    ruleSet, rule, input, traceMode, options, session
+            );
+            ruleTraces.add(ruleEvaluation.trace());
+
+            if (ruleEvaluation.matched()) {
+                return new EvaluationResult(
+                        rule.source().id(),
+                        false,
+                        rule.source().then() != null && rule.source().then().response() != null
+                                ? copy(rule.source().then().response())
+                                : NullNode.getInstance(),
+                        trace(traceMode, ruleSet, evaluatedRuleCount, ruleTraces)
                 );
-                ruleTraces.add(ruleEvaluation.trace());
-
-                if (ruleEvaluation.matched()) {
-                    return new EvaluationResult(
-                            rule.source().id(),
-                            false,
-                            rule.source().then() != null && rule.source().then().response() != null
-                                    ? copy(rule.source().then().response())
-                                    : NullNode.getInstance(),
-                            trace(resolvedTraceMode, ruleSet, evaluatedRuleCount, ruleTraces)
-                    );
-                }
             }
+        }
 
+        return new EvaluationResult(
+                null,
+                true,
+                ruleSet.defaultResponse() != null ? copy(ruleSet.defaultResponse()) : NullNode.getInstance(),
+                trace(traceMode, ruleSet, evaluatedRuleCount, ruleTraces)
+        );
+    }
+
+    /** ALL_MATCHES: evaluate every enabled rule and collect all that fire. */
+    private EvaluationResult evaluateAllMatches(CompiledRuleSet ruleSet,
+                                                JsonNode input,
+                                                TraceMode traceMode,
+                                                EvaluationOptions options,
+                                                EvaluationSession session) {
+        List<RuleTrace> ruleTraces = new ArrayList<>();
+        List<RuleMatch> matches = new ArrayList<>();
+        int evaluatedRuleCount = 0;
+
+        for (CompiledRule rule : ruleSet.compiledRules()) {
+            evaluatedRuleCount++;
+            RuleEvaluation ruleEvaluation = evaluateRule(
+                    ruleSet, rule, input, traceMode, options, session
+            );
+            ruleTraces.add(ruleEvaluation.trace());
+
+            if (ruleEvaluation.matched()) {
+                JsonNode response = rule.source().then() != null && rule.source().then().response() != null
+                        ? copy(rule.source().then().response())
+                        : NullNode.getInstance();
+                matches.add(new RuleMatch(
+                        rule.source().id(),
+                        rule.source().priority(),
+                        response,
+                        rule.source().rollout()
+                ));
+            }
+        }
+
+        EvaluationTrace evalTrace = trace(traceMode, ruleSet, evaluatedRuleCount, ruleTraces);
+
+        if (matches.isEmpty()) {
+            // Nothing matched — return default
             return new EvaluationResult(
                     null,
                     true,
                     ruleSet.defaultResponse() != null ? copy(ruleSet.defaultResponse()) : NullNode.getInstance(),
-                    trace(resolvedTraceMode, ruleSet, evaluatedRuleCount, ruleTraces)
+                    evalTrace,
+                    List.of()
             );
-        } finally {
-            session.exit(ruleSet.ruleSetId());
         }
+
+        // Primary result = first match (highest priority, since rules are sorted descending)
+        RuleMatch primary = matches.get(0);
+        return new EvaluationResult(
+                primary.ruleId(),
+                false,
+                primary.response(),
+                evalTrace,
+                List.copyOf(matches)
+        );
     }
 
     public CompiledRuleSet compile(RuleSet ruleSet) {
@@ -136,6 +200,7 @@ public class RuleKitEvaluator {
                 ruleSet.schemaVersion() != null && !ruleSet.schemaVersion().isBlank()
                         ? ruleSet.schemaVersion()
                         : RuleKitVersions.RULESET_SCHEMA_VERSION,
+                ruleSet.executionMode() != null ? ruleSet.executionMode() : ExecutionMode.FIRST_MATCH,
                 ruleSet.defaultResponse(),
                 orderedEnabledRules(ruleSet)
         );
