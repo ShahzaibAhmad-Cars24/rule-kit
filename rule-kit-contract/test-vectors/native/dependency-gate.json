@@ -13,14 +13,13 @@
           "priority": 100,
           "enabled": true,
           "when": {
-            "all": [
-              {
-                "kind": "FIELD",
-                "fieldRef": "city",
-                "operator": "EQ",
-                "value": "Gurgaon"
-              }
-            ]
+            "tree": {
+              "type": "group",
+              "op": "AND",
+              "children": [
+                { "type": "leaf", "kind": "FIELD", "fieldRef": "city", "operator": "EQ", "value": "Gurgaon" }
+              ]
+            }
           },
           "then": {
             "response": true
@@ -40,13 +39,13 @@
         "priority": 100,
         "enabled": true,
         "when": {
-          "all": [
-            {
-              "kind": "DEPENDENCY",
-              "ruleSetId": "tenant-a.checkout-enabled",
-              "expect": "MATCHED"
-            }
-          ]
+          "tree": {
+            "type": "group",
+            "op": "AND",
+            "children": [
+              { "type": "leaf", "kind": "DEPENDENCY", "ruleSetId": "tenant-a.checkout-enabled", "expect": "MATCHED" }
+            ]
+          }
         },
         "then": {
           "response": true

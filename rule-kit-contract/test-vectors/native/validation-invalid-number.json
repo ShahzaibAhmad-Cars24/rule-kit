@@ -12,14 +12,13 @@
         "priority": 100,
         "enabled": true,
         "when": {
-          "all": [
-            {
-              "kind": "FIELD",
-              "fieldRef": "age",
-              "operator": "GT",
-              "value": "not-a-number"
-            }
-          ]
+          "tree": {
+            "type": "group",
+            "op": "AND",
+            "children": [
+              { "type": "leaf", "kind": "FIELD", "fieldRef": "age", "operator": "GT", "value": "not-a-number" }
+            ]
+          }
         },
         "then": {
           "response": true

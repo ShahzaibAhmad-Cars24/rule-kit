@@ -64,7 +64,9 @@ Validate the JSON contract artifacts:
 jq empty rule-kit-contract/schemas/*.json rule-kit-contract/dynamic-config/*.json rule-kit-contract/test-vectors/*.json rule-kit-contract/test-vectors/native/*.json
 ```
 
-GitHub Actions runs Maven tests on Java 17 and Java 21, then validates the JSON contract and benchmark artifact files.
+GitHub Actions runs Maven tests on Java 17 and Java 21 and enforces `95%` project-wide line coverage for handwritten code.
+
+The coverage gate excludes only JaCoCo lines under JMH-generated `jmh_generated` benchmark harness classes. Handwritten benchmark code, core modules, SDK, starter, and sample app code remain in scope.
 
 ## Snapshot Publishing
 

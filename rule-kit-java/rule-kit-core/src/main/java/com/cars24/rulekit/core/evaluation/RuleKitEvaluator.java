@@ -4,8 +4,12 @@ import com.cars24.rulekit.core.exception.RuleKitEvaluationException;
 import com.cars24.rulekit.core.exception.RuleKitExceptionCode;
 import com.cars24.rulekit.core.exception.RuleKitValidationException;
 import com.cars24.rulekit.core.model.ConditionDefinition;
+import com.cars24.rulekit.core.model.ConditionGroupNode;
 import com.cars24.rulekit.core.model.ConditionKind;
+import com.cars24.rulekit.core.model.ConditionLeaf;
+import com.cars24.rulekit.core.model.ConditionNode;
 import com.cars24.rulekit.core.model.ExecutionMode;
+import com.cars24.rulekit.core.model.LogicalOp;
 import com.cars24.rulekit.core.model.RuleDefinition;
 import com.cars24.rulekit.core.model.RuleKitVersions;
 import com.cars24.rulekit.core.model.RuleSet;
@@ -224,78 +228,28 @@ public class RuleKitEvaluator {
                                         TraceMode traceMode,
                                         EvaluationOptions options,
                                         EvaluationSession session) {
-        List<CompiledCondition> conditions = rule.conditions();
+        // Collect condition traces during tree traversal (only in VERBOSE mode)
+        List<ConditionTrace> conditionTraces = traceMode == TraceMode.VERBOSE ? new ArrayList<>() : null;
 
-        List<ConditionTrace> conditionTraces = new ArrayList<>();
-        boolean matched = true;
-        boolean shortCircuited = false;
+        ConditionNode rootNode = rule.source().when() != null ? rule.source().when().rootNode() : null;
 
-        for (int conditionIndex = 0; conditionIndex < conditions.size(); conditionIndex++) {
-            CompiledCondition compiledCondition = conditions.get(conditionIndex);
-            ConditionDefinition condition = compiledCondition.source();
-            if (shortCircuited) {
-                if (traceMode == TraceMode.VERBOSE) {
-                    conditionTraces.add(new ConditionTrace(
-                            condition.resolvedKind(),
-                            condition.fieldRef(),
-                            condition.operator(),
-                            condition.value(),
-                            condition.valueTo(),
-                            null,
-                            false,
-                            false,
-                            true,
-                            "Skipped because a previous AND condition failed",
-                            null
-                    ));
-                }
-                continue;
-            }
-
-            ConditionEvaluation conditionEvaluation = evaluateCondition(
-                    ruleSet,
-                    rule.source(),
-                    conditionIndex,
-                    compiledCondition,
-                    input,
-                    options,
-                    traceMode,
-                    session
-            );
-
-            if (traceMode == TraceMode.VERBOSE) {
-                conditionTraces.add(conditionEvaluation.trace());
-            }
-
-            if (!conditionEvaluation.matched()) {
-                matched = false;
-                shortCircuited = true;
-                if (traceMode != TraceMode.VERBOSE) {
-                    break;
-                }
-            }
-        }
+        // Evaluate either the explicit tree or the legacy flat "all" list normalized into an AND tree.
+        boolean treeMatched = rootNode != null
+                ? evaluateConditionNode(rootNode, ruleSet, rule.source(), input, options, traceMode, session, conditionTraces)
+                : true; // no conditions → always match
 
         RolloutTrace rolloutTrace = null;
-        if (matched && rule.rollout() != null) {
+        if (treeMatched && rule.rollout() != null) {
             rolloutTrace = RolloutEvaluator.evaluate(
-                    rule.rollout(),
-                    input,
-                    ruleSet.ruleSetId(),
-                    rule.source().id(),
-                    options.factResolver()
+                    rule.rollout(), input, ruleSet.ruleSetId(), rule.source().id(), options.factResolver()
             );
-            matched = rolloutTrace.included();
+            treeMatched = rolloutTrace.included();
         }
 
         return new RuleEvaluation(
-                matched,
-                new RuleTrace(
-                        rule.source().id(),
-                        matched,
-                        traceMode == TraceMode.VERBOSE ? conditionTraces : List.of(),
-                        rolloutTrace
-                )
+                treeMatched,
+                new RuleTrace(rule.source().id(), treeMatched,
+                        conditionTraces != null ? conditionTraces : List.of(), rolloutTrace)
         );
     }
 
@@ -304,6 +258,80 @@ public class RuleKitEvaluator {
 
     private record ConditionEvaluation(boolean matched, ConditionTrace trace) {
     }
+
+    // -------------------------------------------------------------------------
+    // Condition tree evaluation
+    // -------------------------------------------------------------------------
+
+    /**
+     * Recursively evaluates a {@link ConditionNode} from the rule's {@code when.tree}.
+     * Leaf evaluations are appended to {@code traces} when non-null (VERBOSE mode).
+     */
+    private boolean evaluateConditionNode(ConditionNode node,
+                                          CompiledRuleSet ruleSet,
+                                          RuleDefinition rule,
+                                          JsonNode input,
+                                          EvaluationOptions options,
+                                          TraceMode traceMode,
+                                          EvaluationSession session,
+                                          List<ConditionTrace> traces) {
+        if (node instanceof ConditionLeaf leaf) {
+            return evaluateLeafNode(leaf, ruleSet, rule, input, options, traceMode, session, traces);
+        } else if (node instanceof ConditionGroupNode group) {
+            return evaluateGroupNode(group, ruleSet, rule, input, options, traceMode, session, traces);
+        } else {
+            throw new IllegalArgumentException("Unknown ConditionNode type: " + node.getClass());
+        }
+    }
+
+    private boolean evaluateLeafNode(ConditionLeaf leaf,
+                                     CompiledRuleSet ruleSet,
+                                     RuleDefinition rule,
+                                     JsonNode input,
+                                     EvaluationOptions options,
+                                     TraceMode traceMode,
+                                     EvaluationSession session,
+                                     List<ConditionTrace> traces) {
+        ConditionDefinition condition = leaf.toConditionDefinition();
+        CompiledCondition compiled = CompiledRuleSet.compileCondition(condition);
+        ConditionEvaluation eval = evaluateCondition(ruleSet, rule, 0, compiled, input, options, traceMode, session);
+        if (traces != null && eval.trace() != null) {
+            traces.add(eval.trace());
+        }
+        return eval.matched();
+    }
+
+    private boolean evaluateGroupNode(ConditionGroupNode group,
+                                      CompiledRuleSet ruleSet,
+                                      RuleDefinition rule,
+                                      JsonNode input,
+                                      EvaluationOptions options,
+                                      TraceMode traceMode,
+                                      EvaluationSession session,
+                                      List<ConditionTrace> traces) {
+        if (group.children() == null || group.children().isEmpty()) {
+            return true; // empty group matches by default
+        }
+
+        if (group.op() == LogicalOp.OR) {
+            for (ConditionNode child : group.children()) {
+                if (evaluateConditionNode(child, ruleSet, rule, input, options, traceMode, session, traces)) {
+                    return true; // short-circuit on first match
+                }
+            }
+            return false;
+        } else {
+            // AND (default)
+            for (ConditionNode child : group.children()) {
+                if (!evaluateConditionNode(child, ruleSet, rule, input, options, traceMode, session, traces)) {
+                    return false; // short-circuit on first failure
+                }
+            }
+            return true;
+        }
+    }
+
+    // -------------------------------------------------------------------------
 
     private ConditionEvaluation evaluateCondition(CompiledRuleSet ruleSet,
                                                   RuleDefinition rule,

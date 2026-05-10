@@ -16,14 +16,13 @@
         "priority": 100,
         "enabled": true,
         "when": {
-          "all": [
-            {
-              "kind": "SEGMENT",
-              "segmentNames": ["beta-users", "internal-users"],
-              "match": "ANY",
-              "lookupRef": "userId"
-            }
-          ]
+          "tree": {
+            "type": "group",
+            "op": "AND",
+            "children": [
+              { "type": "leaf", "kind": "SEGMENT", "segmentNames": ["beta-users", "internal-users"], "match": "ANY", "lookupRef": "userId" }
+            ]
+          }
         },
         "then": {
           "response": true

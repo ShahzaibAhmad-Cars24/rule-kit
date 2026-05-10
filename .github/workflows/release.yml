@@ -1,36 +1,17 @@
-name: Pull Request CI
+name: Publish Versioned Packages
 
 on:
-  pull_request:
+  push:
+    tags:
+      - "v*"
 
 permissions:
   contents: read
+  packages: write
 
 jobs:
-  test:
-    name: Test (Java ${{ matrix.java }})
-    runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        java: [17, 21]
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Set up Java
-        uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: ${{ matrix.java }}
-          cache: maven
-
-      - name: Run tests
-        run: mvn -B test
-
-  coverage:
-    name: Coverage Gate
+  publish:
+    name: Validate And Publish
     runs-on: ubuntu-latest
 
     steps:
@@ -43,12 +24,22 @@ jobs:
           distribution: temurin
           java-version: 17
           cache: maven
+          server-id: github
+          server-username: GITHUB_ACTOR
+          server-password: GITHUB_TOKEN
+
+      - name: Derive release version from tag
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          echo "RELEASE_VERSION=${VERSION}" >> "$GITHUB_ENV"
+
+      - name: Set Maven project version
+        run: mvn -B versions:set -DnewVersion="${RELEASE_VERSION}" -DgenerateBackupPoms=false
 
       - name: Run verify with coverage reports
         run: mvn -B verify
 
-      - name: Compute project-wide coverage
-        id: coverage
+      - name: Enforce project-wide coverage gate
         run: |
           python3 - <<'PY'
           import os
@@ -80,16 +71,10 @@ jobs:
           total = covered + missed
           coverage = 100.0 if total == 0 else covered * 100.0 / total
 
-          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as fh:
-              fh.write(f"line_coverage={coverage:.2f}\n")
-              fh.write(f"covered_lines={covered}\n")
-              fh.write(f"missed_lines={missed}\n")
-
           with open(os.environ["GITHUB_STEP_SUMMARY"], "a", encoding="utf-8") as fh:
-              fh.write("## Project Coverage\n\n")
+              fh.write("## Release Coverage Gate\n\n")
+              fh.write(f"- Release version: `{os.environ['RELEASE_VERSION']}`\n")
               fh.write(f"- Line coverage: `{coverage:.2f}%`\n")
-              fh.write(f"- Covered lines: `{covered}`\n")
-              fh.write(f"- Missed lines: `{missed}`\n")
               fh.write(f"- Module reports: `{len(reports)}`\n")
               fh.write(f"- Generated JMH lines excluded: `{generated_skipped}`\n")
               fh.write("- Threshold: `95.00%`\n")
@@ -98,8 +83,8 @@ jobs:
               raise SystemExit(f"Coverage gate failed: {coverage:.2f}% < 95.00%")
           PY
 
-      - name: Upload coverage artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: jacoco-reports
-          path: rule-kit-java/*/target/site/jacoco
+      - name: Publish packages to GitHub Packages
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_ACTOR: ${{ github.actor }}
+        run: mvn -B deploy -DskipTests

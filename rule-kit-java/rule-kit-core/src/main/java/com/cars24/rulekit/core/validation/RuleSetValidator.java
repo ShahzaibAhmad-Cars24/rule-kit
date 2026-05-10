@@ -2,6 +2,9 @@ package com.cars24.rulekit.core.validation;
 
 import com.cars24.rulekit.core.exception.RuleKitExceptionCode;
 import com.cars24.rulekit.core.model.ConditionDefinition;
+import com.cars24.rulekit.core.model.ConditionGroupNode;
+import com.cars24.rulekit.core.model.ConditionLeaf;
+import com.cars24.rulekit.core.model.ConditionNode;
 import com.cars24.rulekit.core.model.ExecutionMode;
 import com.cars24.rulekit.core.model.RolloutDefinition;
 import com.cars24.rulekit.core.model.RuleDefinition;
@@ -9,6 +12,7 @@ import com.cars24.rulekit.core.model.RuleKitVersions;
 import com.cars24.rulekit.core.model.RuleSet;
 import com.cars24.rulekit.core.operator.OperatorValueParser;
 import com.cars24.rulekit.core.operator.RuleKitOperator;
+
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -30,34 +34,27 @@ public final class RuleSetValidator {
             errors.add(error(RuleKitExceptionCode.RULESET_VALIDATION_FAILED, "$", "RuleSet cannot be null"));
             return new ValidationResult(errors, warnings);
         }
-
         if (isBlank(ruleSet.id())) {
             errors.add(error(RuleKitExceptionCode.MISSING_RULESET_ID, "$.id", "RuleSet id is required"));
         }
-
         if (!RuleKitVersions.RULESET_SCHEMA_VERSION.equals(ruleSet.schemaVersion())) {
-            errors.add(error(
-                    RuleKitExceptionCode.UNSUPPORTED_SCHEMA_VERSION,
-                    "$.schemaVersion",
-                    "RuleSet schemaVersion must be " + RuleKitVersions.RULESET_SCHEMA_VERSION
-            ));
+            errors.add(error(RuleKitExceptionCode.UNSUPPORTED_SCHEMA_VERSION, "$.schemaVersion",
+                    "RuleSet schemaVersion must be " + RuleKitVersions.RULESET_SCHEMA_VERSION));
         }
-
         if (ruleSet.executionMode() != ExecutionMode.FIRST_MATCH
                 && ruleSet.executionMode() != ExecutionMode.ALL_MATCHES) {
             errors.add(error(RuleKitExceptionCode.UNSUPPORTED_EXECUTION_MODE, "$.executionMode",
                     "executionMode must be FIRST_MATCH or ALL_MATCHES"));
         }
-
         if (ruleSet.rules() == null) {
             errors.add(error(RuleKitExceptionCode.RULESET_VALIDATION_FAILED, "$.rules", "Rules array is required"));
             return new ValidationResult(errors, warnings);
         }
 
         Set<String> ruleIds = new HashSet<>();
-        for (int ruleIndex = 0; ruleIndex < ruleSet.rules().size(); ruleIndex++) {
-            RuleDefinition rule = ruleSet.rules().get(ruleIndex);
-            String rulePath = "$.rules[" + ruleIndex + "]";
+        for (int i = 0; i < ruleSet.rules().size(); i++) {
+            RuleDefinition rule = ruleSet.rules().get(i);
+            String rulePath = "$.rules[" + i + "]";
             if (rule == null) {
                 errors.add(error(RuleKitExceptionCode.RULESET_VALIDATION_FAILED, rulePath, "Rule cannot be null"));
                 continue;
@@ -73,234 +70,169 @@ public final class RuleSetValidator {
             if (rule.enabled() == null) {
                 errors.add(error(RuleKitExceptionCode.MISSING_RULE_ENABLED, rulePath + ".enabled", "Rule enabled flag is required"));
             }
-            if (rule.when() == null || rule.when().all() == null) {
-                errors.add(error(RuleKitExceptionCode.MISSING_WHEN, rulePath + ".when.all", "Rule when.all is required"));
+            ConditionNode rootNode = rule.when() != null ? rule.when().rootNode() : null;
+            if (rootNode == null) {
+                errors.add(error(RuleKitExceptionCode.MISSING_WHEN, rulePath + ".when",
+                        "Rule when.tree or when.all is required"));
                 continue;
             }
             if (rule.then() == null || rule.then().response() == null) {
                 errors.add(error(RuleKitExceptionCode.MISSING_THEN, rulePath + ".then.response", "Rule then.response is required"));
             }
             validateRollout(rule.rollout(), rulePath + ".rollout", errors);
-
-            for (int conditionIndex = 0; conditionIndex < rule.when().all().size(); conditionIndex++) {
-                ConditionDefinition condition = rule.when().all().get(conditionIndex);
-                String conditionPath = rulePath + ".when.all[" + conditionIndex + "]";
-                if (condition == null) {
-                    errors.add(error(RuleKitExceptionCode.RULESET_VALIDATION_FAILED, conditionPath, "Condition cannot be null"));
-                    continue;
-                }
-                validateCondition(condition, conditionPath, errors);
-            }
+            validateConditionNode(rootNode, rulePath + ".when", errors);
         }
 
         return new ValidationResult(List.copyOf(errors), List.copyOf(warnings));
     }
 
-    private static void validateCondition(ConditionDefinition condition,
-                                          String conditionPath,
-                                          List<ValidationMessage> errors) {
+    // -------------------------------------------------------------------------
+    // Tree validation
+    // -------------------------------------------------------------------------
+
+    private static void validateConditionNode(ConditionNode node, String path, List<ValidationMessage> errors) {
+        if (node == null) {
+            errors.add(error(RuleKitExceptionCode.RULESET_VALIDATION_FAILED, path, "Condition node cannot be null"));
+            return;
+        }
+        if (node instanceof ConditionLeaf leaf) {
+            validateCondition(leaf.toConditionDefinition(), path, errors);
+        } else if (node instanceof ConditionGroupNode group) {
+            if (group.op() == null) {
+                errors.add(error(RuleKitExceptionCode.RULESET_VALIDATION_FAILED, path + ".op", "Group op (AND/OR) is required"));
+            }
+            if (group.children() == null) {
+                errors.add(error(RuleKitExceptionCode.RULESET_VALIDATION_FAILED, path + ".children", "Group children cannot be null"));
+                return;
+            }
+            for (int i = 0; i < group.children().size(); i++) {
+                validateConditionNode(group.children().get(i), path + ".children[" + i + "]", errors);
+            }
+        } else {
+            errors.add(error(RuleKitExceptionCode.RULESET_VALIDATION_FAILED, path, "Unknown condition node type"));
+        }
+    }
+
+    // -------------------------------------------------------------------------
+    // Condition validation
+    // -------------------------------------------------------------------------
+
+    private static void validateCondition(ConditionDefinition condition, String path, List<ValidationMessage> errors) {
         switch (condition.resolvedKind()) {
-            case FIELD -> validateFieldCondition(condition, conditionPath, errors);
-            case SEGMENT -> validateSegmentCondition(condition, conditionPath, errors);
-            case DEPENDENCY -> validateDependencyCondition(condition, conditionPath, errors);
+            case FIELD -> validateFieldCondition(condition, path, errors);
+            case SEGMENT -> validateSegmentCondition(condition, path, errors);
+            case DEPENDENCY -> validateDependencyCondition(condition, path, errors);
         }
     }
 
-    private static void validateFieldCondition(ConditionDefinition condition,
-                                               String conditionPath,
-                                               List<ValidationMessage> errors) {
-        if (isBlank(condition.fieldRef())) {
-            errors.add(error(RuleKitExceptionCode.MISSING_FIELD_REF, conditionPath + ".fieldRef", "Condition fieldRef is required"));
+    private static void validateFieldCondition(ConditionDefinition c, String path, List<ValidationMessage> errors) {
+        if (isBlank(c.fieldRef())) {
+            errors.add(error(RuleKitExceptionCode.MISSING_FIELD_REF, path + ".fieldRef", "Condition fieldRef is required"));
         }
-        if (hasSegmentFields(condition) || hasDependencyFields(condition)) {
-            errors.add(error(
-                    RuleKitExceptionCode.RULESET_VALIDATION_FAILED,
-                    conditionPath,
-                    "FIELD condition cannot include segment or dependency fields"
-            ));
+        if (hasSegmentFields(c) || hasDependencyFields(c)) {
+            errors.add(error(RuleKitExceptionCode.RULESET_VALIDATION_FAILED, path,
+                    "FIELD condition cannot include segment or dependency fields"));
         }
-        Optional<RuleKitOperator> operator = RuleKitOperator.from(condition.operator());
+        Optional<RuleKitOperator> operator = RuleKitOperator.from(c.operator());
         if (operator.isEmpty()) {
-            errors.add(error(
-                    RuleKitExceptionCode.UNSUPPORTED_OPERATOR,
-                    conditionPath + ".operator",
-                    "Unsupported operator: " + condition.operator()
-            ));
+            errors.add(error(RuleKitExceptionCode.UNSUPPORTED_OPERATOR, path + ".operator",
+                    "Unsupported operator: " + c.operator()));
             return;
         }
-        validateConditionOperands(condition, operator.get(), conditionPath, errors);
+        validateConditionOperands(c, operator.get(), path, errors);
     }
 
-    private static void validateSegmentCondition(ConditionDefinition condition,
-                                                 String conditionPath,
-                                                 List<ValidationMessage> errors) {
-        if (condition.segmentNames() == null || condition.segmentNames().isEmpty()) {
-            errors.add(error(
-                    RuleKitExceptionCode.INVALID_SEGMENT_CONDITION,
-                    conditionPath + ".segmentNames",
-                    "Segment condition requires at least one segment name"
-            ));
-        } else if (condition.segmentNames().stream().anyMatch(RuleSetValidator::isBlank)) {
-            errors.add(error(
-                    RuleKitExceptionCode.INVALID_SEGMENT_CONDITION,
-                    conditionPath + ".segmentNames",
-                    "Segment names cannot be blank"
-            ));
+    private static void validateSegmentCondition(ConditionDefinition c, String path, List<ValidationMessage> errors) {
+        if (c.segmentNames() == null || c.segmentNames().isEmpty()) {
+            errors.add(error(RuleKitExceptionCode.INVALID_SEGMENT_CONDITION, path + ".segmentNames",
+                    "Segment condition requires at least one segment name"));
+        } else if (c.segmentNames().stream().anyMatch(RuleSetValidator::isBlank)) {
+            errors.add(error(RuleKitExceptionCode.INVALID_SEGMENT_CONDITION, path + ".segmentNames",
+                    "Segment names cannot be blank"));
         }
-        if (condition.match() == null) {
-            errors.add(error(
-                    RuleKitExceptionCode.INVALID_SEGMENT_CONDITION,
-                    conditionPath + ".match",
-                    "Segment condition requires match"
-            ));
+        if (c.match() == null) {
+            errors.add(error(RuleKitExceptionCode.INVALID_SEGMENT_CONDITION, path + ".match",
+                    "Segment condition requires match"));
         }
-        if (isBlank(condition.lookupRef())) {
-            errors.add(error(
-                    RuleKitExceptionCode.INVALID_SEGMENT_CONDITION,
-                    conditionPath + ".lookupRef",
-                    "Segment condition requires lookupRef"
-            ));
+        if (isBlank(c.lookupRef())) {
+            errors.add(error(RuleKitExceptionCode.INVALID_SEGMENT_CONDITION, path + ".lookupRef",
+                    "Segment condition requires lookupRef"));
         }
-        if (hasFieldOperatorFields(condition) || hasDependencyFields(condition)) {
-            errors.add(error(
-                    RuleKitExceptionCode.INVALID_SEGMENT_CONDITION,
-                    conditionPath,
-                    "SEGMENT condition cannot include field or dependency fields"
-            ));
+        if (hasFieldOperatorFields(c) || hasDependencyFields(c)) {
+            errors.add(error(RuleKitExceptionCode.INVALID_SEGMENT_CONDITION, path,
+                    "SEGMENT condition cannot include field or dependency fields"));
         }
     }
 
-    private static void validateDependencyCondition(ConditionDefinition condition,
-                                                    String conditionPath,
-                                                    List<ValidationMessage> errors) {
-        if (isBlank(condition.ruleSetId())) {
-            errors.add(error(
-                    RuleKitExceptionCode.INVALID_DEPENDENCY_CONDITION,
-                    conditionPath + ".ruleSetId",
-                    "Dependency condition requires ruleSetId"
-            ));
+    private static void validateDependencyCondition(ConditionDefinition c, String path, List<ValidationMessage> errors) {
+        if (isBlank(c.ruleSetId())) {
+            errors.add(error(RuleKitExceptionCode.INVALID_DEPENDENCY_CONDITION, path + ".ruleSetId",
+                    "Dependency condition requires ruleSetId"));
         }
-        if (condition.expect() == null) {
-            errors.add(error(
-                    RuleKitExceptionCode.INVALID_DEPENDENCY_CONDITION,
-                    conditionPath + ".expect",
-                    "Dependency condition requires expect"
-            ));
+        if (c.expect() == null) {
+            errors.add(error(RuleKitExceptionCode.INVALID_DEPENDENCY_CONDITION, path + ".expect",
+                    "Dependency condition requires expect"));
         }
-        if (hasFieldOperatorFields(condition) || hasSegmentFields(condition)) {
-            errors.add(error(
-                    RuleKitExceptionCode.INVALID_DEPENDENCY_CONDITION,
-                    conditionPath,
-                    "DEPENDENCY condition cannot include field or segment fields"
-            ));
+        if (hasFieldOperatorFields(c) || hasSegmentFields(c)) {
+            errors.add(error(RuleKitExceptionCode.INVALID_DEPENDENCY_CONDITION, path,
+                    "DEPENDENCY condition cannot include field or segment fields"));
         }
     }
 
-    private static void validateRollout(RolloutDefinition rollout,
-                                        String rolloutPath,
-                                        List<ValidationMessage> errors) {
-        if (rollout == null) {
-            return;
-        }
+    private static void validateRollout(RolloutDefinition rollout, String path, List<ValidationMessage> errors) {
+        if (rollout == null) return;
         if (rollout.percentage() == null || rollout.percentage() < 0 || rollout.percentage() > 100) {
-            errors.add(error(
-                    RuleKitExceptionCode.INVALID_ROLLOUT,
-                    rolloutPath + ".percentage",
-                    "Rollout percentage must be between 0 and 100"
-            ));
+            errors.add(error(RuleKitExceptionCode.INVALID_ROLLOUT, path + ".percentage",
+                    "Rollout percentage must be between 0 and 100"));
         }
         if (isBlank(rollout.unitRef())) {
-            errors.add(error(
-                    RuleKitExceptionCode.INVALID_ROLLOUT,
-                    rolloutPath + ".unitRef",
-                    "Rollout unitRef is required"
-            ));
+            errors.add(error(RuleKitExceptionCode.INVALID_ROLLOUT, path + ".unitRef", "Rollout unitRef is required"));
         }
         if (rollout.algorithm() == null) {
-            errors.add(error(
-                    RuleKitExceptionCode.INVALID_ROLLOUT,
-                    rolloutPath + ".algorithm",
-                    "Rollout algorithm is required"
-            ));
+            errors.add(error(RuleKitExceptionCode.INVALID_ROLLOUT, path + ".algorithm", "Rollout algorithm is required"));
         }
         if (rollout.bucketCount() == null || rollout.bucketCount() <= 0) {
-            errors.add(error(
-                    RuleKitExceptionCode.INVALID_ROLLOUT,
-                    rolloutPath + ".bucketCount",
-                    "Rollout bucketCount must be greater than zero"
-            ));
+            errors.add(error(RuleKitExceptionCode.INVALID_ROLLOUT, path + ".bucketCount",
+                    "Rollout bucketCount must be greater than zero"));
         }
     }
 
-    private static void validateConditionOperands(ConditionDefinition condition,
-                                                  RuleKitOperator operator,
-                                                  String conditionPath,
-                                                  List<ValidationMessage> errors) {
-        if (operator.requiresValue() && condition.value() == null) {
-            errors.add(error(
-                    RuleKitExceptionCode.MISSING_CONDITION_VALUE,
-                    conditionPath + ".value",
-                    "Operator " + condition.operator() + " requires value"
-            ));
+    private static void validateConditionOperands(ConditionDefinition c, RuleKitOperator operator,
+                                                   String path, List<ValidationMessage> errors) {
+        if (operator.requiresValue() && c.value() == null) {
+            errors.add(error(RuleKitExceptionCode.MISSING_CONDITION_VALUE, path + ".value",
+                    "Operator " + c.operator() + " requires value"));
             return;
         }
-        if (operator.requiresValueTo() && condition.valueTo() == null) {
-            errors.add(error(
-                    RuleKitExceptionCode.MISSING_CONDITION_VALUE_TO,
-                    conditionPath + ".valueTo",
-                    "Operator " + condition.operator() + " requires valueTo"
-            ));
+        if (operator.requiresValueTo() && c.valueTo() == null) {
+            errors.add(error(RuleKitExceptionCode.MISSING_CONDITION_VALUE_TO, path + ".valueTo",
+                    "Operator " + c.operator() + " requires valueTo"));
         }
-        if (operator.regex() && condition.value() != null && !condition.value().isNull()) {
-            validateRegex(condition, conditionPath, errors);
-        }
-        if (operator.numeric()) {
-            validateNumericValue(condition.value(), conditionPath + ".value", condition.operator(), errors);
-            if (operator.requiresValueTo()) {
-                validateNumericValue(condition.valueTo(), conditionPath + ".valueTo", condition.operator(), errors);
-                validateRange(condition, conditionPath, errors);
+        if (operator.regex() && c.value() != null && !c.value().isNull()) {
+            try {
+                Pattern.compile(c.value().asText());
+            } catch (PatternSyntaxException e) {
+                errors.add(error(RuleKitExceptionCode.INVALID_REGEX_PATTERN, path + ".value",
+                        "Invalid regex pattern for operator " + c.operator() + ": " + e.getDescription()));
             }
         }
-    }
-
-    private static void validateRegex(ConditionDefinition condition,
-                                      String conditionPath,
-                                      List<ValidationMessage> errors) {
-        try {
-            Pattern.compile(condition.value().asText());
-        } catch (PatternSyntaxException e) {
-            errors.add(error(
-                    RuleKitExceptionCode.INVALID_REGEX_PATTERN,
-                    conditionPath + ".value",
-                    "Invalid regex pattern for operator " + condition.operator() + ": " + e.getDescription()
-            ));
-        }
-    }
-
-    private static void validateNumericValue(com.fasterxml.jackson.databind.JsonNode value,
-                                             String path,
-                                             String operator,
-                                             List<ValidationMessage> errors) {
-        if (OperatorValueParser.asNumber(value).isEmpty()) {
-            errors.add(error(
-                    RuleKitExceptionCode.INVALID_NUMERIC_VALUE,
-                    path,
-                    "Strict validation requires numeric value for operator " + operator
-            ));
-        }
-    }
-
-    private static void validateRange(ConditionDefinition condition,
-                                      String conditionPath,
-                                      List<ValidationMessage> errors) {
-        Optional<Double> start = OperatorValueParser.asNumber(condition.value());
-        Optional<Double> end = OperatorValueParser.asNumber(condition.valueTo());
-        if (start.isPresent() && end.isPresent() && start.get() > end.get()) {
-            errors.add(error(
-                    RuleKitExceptionCode.INVALID_RANGE,
-                    conditionPath + ".valueTo",
-                    "BETWEEN valueTo must be greater than or equal to value"
-            ));
+        if (operator.numeric()) {
+            if (OperatorValueParser.asNumber(c.value()).isEmpty()) {
+                errors.add(error(RuleKitExceptionCode.INVALID_NUMERIC_VALUE, path + ".value",
+                        "Strict validation requires numeric value for operator " + c.operator()));
+            }
+            if (operator.requiresValueTo()) {
+                if (OperatorValueParser.asNumber(c.valueTo()).isEmpty()) {
+                    errors.add(error(RuleKitExceptionCode.INVALID_NUMERIC_VALUE, path + ".valueTo",
+                            "Strict validation requires numeric value for operator " + c.operator()));
+                }
+                Optional<Double> start = OperatorValueParser.asNumber(c.value());
+                Optional<Double> end = OperatorValueParser.asNumber(c.valueTo());
+                if (start.isPresent() && end.isPresent() && start.get() > end.get()) {
+                    errors.add(error(RuleKitExceptionCode.INVALID_RANGE, path + ".valueTo",
+                            "BETWEEN valueTo must be greater than or equal to value"));
+                }
+            }
         }
     }
 
@@ -308,24 +240,17 @@ public final class RuleSetValidator {
         return new ValidationMessage(ValidationSeverity.ERROR, code, path, message);
     }
 
-    private static boolean isBlank(String value) {
-        return value == null || value.isBlank();
+    private static boolean isBlank(String v) { return v == null || v.isBlank(); }
+
+    private static boolean hasFieldOperatorFields(ConditionDefinition c) {
+        return !isBlank(c.fieldRef()) || !isBlank(c.operator()) || c.value() != null || c.valueTo() != null;
     }
 
-    private static boolean hasFieldOperatorFields(ConditionDefinition condition) {
-        return !isBlank(condition.fieldRef())
-                || !isBlank(condition.operator())
-                || condition.value() != null
-                || condition.valueTo() != null;
+    private static boolean hasSegmentFields(ConditionDefinition c) {
+        return (c.segmentNames() != null && !c.segmentNames().isEmpty()) || c.match() != null || !isBlank(c.lookupRef());
     }
 
-    private static boolean hasSegmentFields(ConditionDefinition condition) {
-        return condition.segmentNames() != null && !condition.segmentNames().isEmpty()
-                || condition.match() != null
-                || !isBlank(condition.lookupRef());
-    }
-
-    private static boolean hasDependencyFields(ConditionDefinition condition) {
-        return !isBlank(condition.ruleSetId()) || condition.expect() != null;
+    private static boolean hasDependencyFields(ConditionDefinition c) {
+        return !isBlank(c.ruleSetId()) || c.expect() != null;
     }
 }

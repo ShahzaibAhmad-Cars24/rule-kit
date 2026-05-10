@@ -29,19 +29,19 @@ class RuleKitEvaluatorTest {
                       "id": "standard-discount",
                       "priority": 10,
                       "enabled": true,
-                      "when": { "all": [
-                        { "fieldRef": "cart.total", "operator": "GTE", "value": 1000 }
-                      ]},
+                      "when": { "tree": { "type": "group", "op": "AND", "children": [
+                        { "type": "leaf", "fieldRef": "cart.total", "operator": "GTE", "value": 1000 }
+                      ]}},
                       "then": { "response": { "discountPercent": 5 } }
                     },
                     {
                       "id": "vip-discount",
                       "priority": 100,
                       "enabled": true,
-                      "when": { "all": [
-                        { "fieldRef": "customer.tier", "operator": "EQ", "value": "vip" },
-                        { "fieldRef": "cart.total", "operator": "GTE", "value": 5000 }
-                      ]},
+                      "when": { "tree": { "type": "group", "op": "AND", "children": [
+                        { "type": "leaf", "fieldRef": "customer.tier", "operator": "EQ", "value": "vip" },
+                        { "type": "leaf", "fieldRef": "cart.total", "operator": "GTE", "value": 5000 }
+                      ]}},
                       "then": { "response": { "discountPercent": 12 } }
                     }
                   ]
@@ -76,9 +76,9 @@ class RuleKitEvaluatorTest {
                       "id": "vip-discount",
                       "priority": 100,
                       "enabled": true,
-                      "when": { "all": [
-                        { "fieldRef": "customer.tier", "operator": "EQ", "value": "vip" }
-                      ]},
+                      "when": { "tree": { "type": "group", "op": "AND", "children": [
+                        { "type": "leaf", "fieldRef": "customer.tier", "operator": "EQ", "value": "vip" }
+                      ]}},
                       "then": { "response": "vip-discount" }
                     }
                   ]
@@ -107,17 +107,17 @@ class RuleKitEvaluatorTest {
                       "id": "operator-match",
                       "priority": 10,
                       "enabled": true,
-                      "when": { "all": [
-                        { "fieldRef": "name", "operator": "STARTS_WITH", "value": "Jo" },
-                        { "fieldRef": "name", "operator": "ENDS_WITH", "value": "hn" },
-                        { "fieldRef": "age", "operator": "BETWEEN", "value": 18, "valueTo": 30 },
-                        { "fieldRef": "city", "operator": "IN", "value": ["Delhi", "Gurgaon"] },
-                        { "fieldRef": "tags", "operator": "CONTAINS", "value": "gold" },
-                        { "fieldRef": "email", "operator": "MATCHES", "value": "^[^@]+@cars24\\\\.com$" },
-                        { "fieldRef": "active", "operator": "IS_TRUE" },
-                        { "fieldRef": "metadata", "operator": "EXISTS" },
-                        { "fieldRef": "deletedAt", "operator": "NOT_EXISTS" }
-                      ]},
+                      "when": { "tree": { "type": "group", "op": "AND", "children": [
+                        { "type": "leaf", "fieldRef": "name", "operator": "STARTS_WITH", "value": "Jo" },
+                        { "type": "leaf", "fieldRef": "name", "operator": "ENDS_WITH", "value": "hn" },
+                        { "type": "leaf", "fieldRef": "age", "operator": "BETWEEN", "value": 18, "valueTo": 30 },
+                        { "type": "leaf", "fieldRef": "city", "operator": "IN", "value": ["Delhi", "Gurgaon"] },
+                        { "type": "leaf", "fieldRef": "tags", "operator": "CONTAINS", "value": "gold" },
+                        { "type": "leaf", "fieldRef": "email", "operator": "MATCHES", "value": "^[^@]+@cars24\\\\.com$" },
+                        { "type": "leaf", "fieldRef": "active", "operator": "IS_TRUE" },
+                        { "type": "leaf", "fieldRef": "metadata", "operator": "EXISTS" },
+                        { "type": "leaf", "fieldRef": "deletedAt", "operator": "NOT_EXISTS" }
+                      ]}},
                       "then": { "response": { "matched": true } }
                     }
                   ]
@@ -155,7 +155,7 @@ class RuleKitEvaluatorTest {
                       "id": "global-value",
                       "priority": 10,
                       "enabled": true,
-                      "when": { "all": [] },
+                      "when": { "tree": { "type": "group", "op": "AND", "children": []} },
                       "then": { "response": { "enabled": true } }
                     }
                   ]

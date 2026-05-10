@@ -12,14 +12,13 @@
         "priority": 100,
         "enabled": true,
         "when": {
-          "all": [
-            {
-              "kind": "FIELD",
-              "fieldRef": "platform",
-              "operator": "EQ",
-              "value": "android"
-            }
-          ]
+          "tree": {
+            "type": "group",
+            "op": "AND",
+            "children": [
+              { "type": "leaf", "kind": "FIELD", "fieldRef": "platform", "operator": "EQ", "value": "android" }
+            ]
+          }
         },
         "rollout": {
           "percentage": 100,

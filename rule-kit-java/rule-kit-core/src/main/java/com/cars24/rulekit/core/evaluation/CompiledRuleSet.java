@@ -2,7 +2,10 @@ package com.cars24.rulekit.core.evaluation;
 
 import com.cars24.rulekit.core.model.ConditionDefinition;
 import com.cars24.rulekit.core.model.ConditionGroup;
+import com.cars24.rulekit.core.model.ConditionGroupNode;
 import com.cars24.rulekit.core.model.ConditionKind;
+import com.cars24.rulekit.core.model.ConditionLeaf;
+import com.cars24.rulekit.core.model.ConditionNode;
 import com.cars24.rulekit.core.model.ExecutionMode;
 import com.cars24.rulekit.core.model.RuleDefinition;
 import com.cars24.rulekit.core.model.RuleThen;
@@ -22,7 +25,7 @@ public final class CompiledRuleSet {
     private final List<RuleDefinition> rules;
     private final List<CompiledRule> compiledRules;
 
-    /** Legacy constructor — defaults to FIRST_MATCH. */
+    /** Defaults to FIRST_MATCH. */
     public CompiledRuleSet(String ruleSetId,
                            String schemaVersion,
                            JsonNode defaultResponse,
@@ -45,79 +48,97 @@ public final class CompiledRuleSet {
                 .toList();
     }
 
-    public String ruleSetId() {
-        return ruleSetId;
-    }
+    public String ruleSetId()         { return ruleSetId; }
+    public String schemaVersion()     { return schemaVersion; }
+    public ExecutionMode executionMode() { return executionMode; }
+    public JsonNode defaultResponse() { return deepCopy(defaultResponse); }
+    public List<RuleDefinition> rules() { return copyRules(rules); }
+    List<CompiledRule> compiledRules() { return compiledRules; }
 
-    public String schemaVersion() {
-        return schemaVersion;
-    }
-
-    public ExecutionMode executionMode() {
-        return executionMode;
-    }
-
-    public JsonNode defaultResponse() {
-        return deepCopy(defaultResponse);
-    }
-
-    public List<RuleDefinition> rules() {
-        return copyRules(rules);
-    }
-
-    List<CompiledRule> compiledRules() {
-        return compiledRules;
-    }
+    // -------------------------------------------------------------------------
+    // Rule copy (defensive)
+    // -------------------------------------------------------------------------
 
     private static List<RuleDefinition> copyRules(List<RuleDefinition> rules) {
-        if (rules == null || rules.isEmpty()) {
-            return List.of();
-        }
-        return rules.stream()
-                .map(CompiledRuleSet::copyRule)
-                .toList();
+        if (rules == null || rules.isEmpty()) return List.of();
+        return rules.stream().map(CompiledRuleSet::copyRule).toList();
     }
 
     private static RuleDefinition copyRule(RuleDefinition rule) {
-        List<ConditionDefinition> conditions = rule.when() != null && rule.when().all() != null
-                ? rule.when().all().stream().map(CompiledRuleSet::copyCondition).toList()
-                : List.of();
+        // Deep-copy the tree so mutations to source JsonNode values don't affect compiled evaluation
+        ConditionGroup when = rule.when() != null
+                ? new ConditionGroup(
+                        deepCopyTree(rule.when().tree()),
+                        deepCopyConditions(rule.when().all())
+                )
+                : null;
         RuleThen then = rule.then() != null
                 ? new RuleThen(deepCopy(rule.then().response()))
                 : null;
-        return new RuleDefinition(
-                rule.id(),
-                rule.priority(),
-                rule.enabled(),
-                new ConditionGroup(conditions),
-                rule.rollout(),
-                then
-        );
+        return new RuleDefinition(rule.id(), rule.priority(), rule.enabled(), when, rule.rollout(), then);
     }
 
-    private static ConditionDefinition copyCondition(ConditionDefinition condition) {
-        return new ConditionDefinition(
-                condition.resolvedKind(),
-                condition.fieldRef(),
-                condition.operator(),
-                deepCopy(condition.value()),
-                deepCopy(condition.valueTo()),
-                condition.segmentNames(),
-                condition.match(),
-                condition.lookupRef(),
-                condition.ruleSetId(),
-                condition.expect()
-        );
+    /**
+     * Deep-copies a {@link ConditionNode} tree, including all {@link JsonNode} values
+     * inside {@link ConditionLeaf} nodes, so that post-compile mutations to the source
+     * have no effect on the compiled rule set.
+     */
+    private static ConditionNode deepCopyTree(ConditionNode node) {
+        if (node == null) return null;
+        if (node instanceof ConditionLeaf leaf) {
+            return new ConditionLeaf(
+                    leaf.kind(),
+                    leaf.fieldRef(),
+                    leaf.operator(),
+                    deepCopy(leaf.value()),
+                    deepCopy(leaf.valueTo()),
+                    leaf.segmentNames(),
+                    leaf.match(),
+                    leaf.lookupRef(),
+                    leaf.ruleSetId(),
+                    leaf.expect()
+            );
+        } else if (node instanceof ConditionGroupNode group) {
+            List<ConditionNode> copiedChildren = group.children() == null ? List.of()
+                    : group.children().stream().map(CompiledRuleSet::deepCopyTree).toList();
+            return new ConditionGroupNode(group.op(), copiedChildren);
+        }
+        throw new IllegalArgumentException("Unknown ConditionNode type: " + node.getClass());
     }
+
+    private static List<ConditionDefinition> deepCopyConditions(List<ConditionDefinition> conditions) {
+        if (conditions == null || conditions.isEmpty()) {
+            return List.of();
+        }
+        return conditions.stream()
+                .map(condition -> new ConditionDefinition(
+                        condition.kind(),
+                        condition.fieldRef(),
+                        condition.operator(),
+                        deepCopy(condition.value()),
+                        deepCopy(condition.valueTo()),
+                        condition.segmentNames(),
+                        condition.match(),
+                        condition.lookupRef(),
+                        condition.ruleSetId(),
+                        condition.expect()
+                ))
+                .toList();
+    }
+
+    // -------------------------------------------------------------------------
+    // Rule compilation
+    // -------------------------------------------------------------------------
 
     private static CompiledRule compileRule(RuleDefinition rule) {
-        List<CompiledCondition> conditions = rule.when() != null && rule.when().all() != null
-                ? rule.when().all().stream().map(CompiledRuleSet::compileCondition).toList()
-                : List.of();
-        return new CompiledRule(rule, conditions, rule.rollout());
+        return new CompiledRule(rule);
     }
 
-    private static CompiledCondition compileCondition(ConditionDefinition condition) {
+    // -------------------------------------------------------------------------
+    // On-the-fly condition compilation (used by tree leaf evaluation)
+    // -------------------------------------------------------------------------
+
+    static CompiledCondition compileCondition(ConditionDefinition condition) {
         if (condition.resolvedKind() != ConditionKind.FIELD) {
             return new CompiledCondition(condition, null, List.of(), 0.0, 0.0, null);
         }

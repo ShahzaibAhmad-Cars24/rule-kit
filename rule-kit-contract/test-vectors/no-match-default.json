@@ -11,13 +11,13 @@
         "priority": 100,
         "enabled": true,
         "when": {
-          "all": [
-            {
-              "fieldRef": "customer.tier",
-              "operator": "EQ",
-              "value": "vip"
-            }
-          ]
+          "tree": {
+            "type": "group",
+            "op": "AND",
+            "children": [
+              { "type": "leaf", "fieldRef": "customer.tier", "operator": "EQ", "value": "vip" }
+            ]
+          }
         },
         "then": {
           "response": "vip-discount"

@@ -13,13 +13,13 @@
         "priority": 10,
         "enabled": true,
         "when": {
-          "all": [
-            {
-              "fieldRef": "cart.total",
-              "operator": "GTE",
-              "value": 1000
-            }
-          ]
+          "tree": {
+            "type": "group",
+            "op": "AND",
+            "children": [
+              { "type": "leaf", "fieldRef": "cart.total", "operator": "GTE", "value": 1000 }
+            ]
+          }
         },
         "then": {
           "response": {
@@ -32,18 +32,14 @@
         "priority": 100,
         "enabled": true,
         "when": {
-          "all": [
-            {
-              "fieldRef": "customer.tier",
-              "operator": "EQ",
-              "value": "vip"
-            },
-            {
-              "fieldRef": "cart.total",
-              "operator": "GTE",
-              "value": 5000
-            }
-          ]
+          "tree": {
+            "type": "group",
+            "op": "AND",
+            "children": [
+              { "type": "leaf", "fieldRef": "customer.tier", "operator": "EQ", "value": "vip" },
+              { "type": "leaf", "fieldRef": "cart.total", "operator": "GTE", "value": 5000 }
+            ]
+          }
         },
         "then": {
           "response": {

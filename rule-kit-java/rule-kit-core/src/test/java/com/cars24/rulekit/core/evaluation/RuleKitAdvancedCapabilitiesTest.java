@@ -2,9 +2,12 @@ package com.cars24.rulekit.core.evaluation;
 
 import com.cars24.rulekit.core.exception.RuleKitExceptionCode;
 import com.cars24.rulekit.core.exception.RuleKitValidationException;
-import com.cars24.rulekit.core.model.ConditionDefinition;
 import com.cars24.rulekit.core.model.ConditionGroup;
+import com.cars24.rulekit.core.model.ConditionGroupNode;
+import com.cars24.rulekit.core.model.ConditionLeaf;
+import com.cars24.rulekit.core.model.ConditionKind;
 import com.cars24.rulekit.core.model.ExecutionMode;
+import com.cars24.rulekit.core.model.LogicalOp;
 import com.cars24.rulekit.core.model.RuleDefinition;
 import com.cars24.rulekit.core.model.RuleKitVersions;
 import com.cars24.rulekit.core.model.RuleSet;
@@ -22,6 +25,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -54,7 +58,10 @@ class RuleKitAdvancedCapabilitiesTest {
     }
 
     @Test
-    void supportsLazyHostFactResolverAndDoesNotResolveSkippedConditions() throws Exception {
+    void supportsLazyHostFactResolverAndDoesNotResolveUnnecessaryFields() throws Exception {
+        // Rule 1 (priority=100): plan EQ "basic" AND _gates.expensive.matched EQ true
+        // Rule 2 (priority=10):  plan EQ "premium"
+        // Input: plan=premium → rule 1 short-circuits on plan EQ "basic" → expensive gate never resolved
         RuleSet ruleSet = objectMapper.readValue("""
                 {
                   "id": "lazy-rules",
@@ -66,24 +73,29 @@ class RuleKitAdvancedCapabilitiesTest {
                       "id": "first-rule",
                       "priority": 100,
                       "enabled": true,
-                      "when": { "all": [
-                        { "fieldRef": "plan", "operator": "EQ", "value": "basic" },
-                        { "fieldRef": "_gates.expensive.matched", "operator": "EQ", "value": true }
-                      ]},
+                      "when": { "tree": {
+                        "type": "group", "op": "AND", "children": [
+                          { "type": "leaf", "kind": "FIELD", "fieldRef": "plan", "operator": "EQ", "value": "basic" },
+                          { "type": "leaf", "kind": "FIELD", "fieldRef": "_gates.expensive.matched", "operator": "EQ", "value": true }
+                        ]
+                      }},
                       "then": { "response": "first" }
                     },
                     {
                       "id": "second-rule",
                       "priority": 10,
                       "enabled": true,
-                      "when": { "all": [
-                        { "fieldRef": "plan", "operator": "EQ", "value": "premium" }
-                      ]},
+                      "when": { "tree": {
+                        "type": "group", "op": "AND", "children": [
+                          { "type": "leaf", "kind": "FIELD", "fieldRef": "plan", "operator": "EQ", "value": "premium" }
+                        ]
+                      }},
                       "then": { "response": "second" }
                     }
                   ]
                 }
                 """, RuleSet.class);
+
         JsonNode input = objectMapper.readTree("{ \"plan\": \"premium\" }");
         List<String> resolvedFields = new ArrayList<>();
 
@@ -94,13 +106,13 @@ class RuleKitAdvancedCapabilitiesTest {
                     .orElseGet(ResolvedFact::missing);
         };
 
-        EvaluationResult result = evaluator.evaluate(ruleSet, input, TraceMode.VERBOSE, resolver);
+        EvaluationResult result = evaluator.evaluate(ruleSet, input, TraceMode.COMPACT, resolver);
 
         assertThat(result.matchedRuleId()).isEqualTo("second-rule");
-        assertThat(resolvedFields).containsExactly("plan", "plan");
-        assertThat(result.trace().rules().get(0).conditions()).hasSize(2);
-        assertThat(result.trace().rules().get(0).conditions().get(1).skipped()).isTrue();
-        assertThat(result.trace().rules().get(0).conditions().get(1).resolved()).isFalse();
+        // plan resolved for rule-1 (fails), then plan resolved for rule-2 (matches)
+        // expensive gate should NOT be resolved at all (AND short-circuited)
+        assertThat(resolvedFields).doesNotContain("_gates.expensive.matched");
+        assertThat(resolvedFields.stream().filter("plan"::equals).count()).isEqualTo(2);
     }
 
     @Test
@@ -116,14 +128,17 @@ class RuleKitAdvancedCapabilitiesTest {
                       "id": "uses-context-resolver",
                       "priority": 10,
                       "enabled": true,
-                      "when": { "all": [
-                        { "fieldRef": "_gates.checkout-enabled.matched", "operator": "EQ", "value": true }
-                      ]},
+                      "when": { "tree": {
+                        "type": "group", "op": "AND", "children": [
+                          { "type": "leaf", "kind": "FIELD", "fieldRef": "_gates.checkout-enabled.matched", "operator": "EQ", "value": true }
+                        ]
+                      }},
                       "then": { "response": "enabled" }
                     }
                   ]
                 }
                 """, RuleSet.class);
+
         List<String> contexts = new ArrayList<>();
         FactResolver resolver = new FactResolver() {
             @Override
@@ -141,15 +156,17 @@ class RuleKitAdvancedCapabilitiesTest {
             }
         };
 
-        EvaluationResult result = evaluator.evaluate(ruleSet, objectMapper.readTree("{}"), TraceMode.VERBOSE, resolver);
+        EvaluationResult result = evaluator.evaluate(ruleSet, objectMapper.readTree("{}"), TraceMode.COMPACT, resolver);
 
         assertThat(result.matchedRuleId()).isEqualTo("uses-context-resolver");
         assertThat(contexts).containsExactly("context-rules/uses-context-resolver/0");
-        assertThat(result.trace().rules().get(0).conditions().get(0).resolved()).isTrue();
     }
 
     @Test
     void validatesRuleSetsAndReportsStructuredErrors() throws Exception {
+        // "tree" is absent → validator should report MISSING_WHEN
+        // schema version is wrong
+        // duplicate rule ids
         RuleSet ruleSet = objectMapper.readValue("""
                 {
                   "id": "invalid-rules",
@@ -160,16 +177,18 @@ class RuleKitAdvancedCapabilitiesTest {
                       "id": "same",
                       "priority": 10,
                       "enabled": true,
-                      "when": { "all": [
-                        { "fieldRef": "plan", "operator": "NOPE", "value": "premium" }
-                      ]},
+                      "when": { "tree": {
+                        "type": "group", "op": "AND", "children": [
+                          { "type": "leaf", "kind": "FIELD", "fieldRef": "plan", "operator": "NOPE", "value": "premium" }
+                        ]
+                      }},
                       "then": { "response": "a" }
                     },
                     {
                       "id": "same",
                       "priority": 5,
                       "enabled": true,
-                      "when": { "all": [] },
+                      "when": { "tree": { "type": "group", "op": "AND", "children": [] } },
                       "then": { "response": "b" }
                     }
                   ]
@@ -189,19 +208,20 @@ class RuleKitAdvancedCapabilitiesTest {
     }
 
     @Test
-    void validatesNullRulesAndConditionsAsStructuredErrors() throws Exception {
+    void validatesNullRulesAndMissingTreeAsStructuredErrors() throws Exception {
+        // Rule at index 0 is null; rule at index 1 has neither tree nor legacy all conditions.
         RuleSet ruleSet = new RuleSet(
                 "null-entry-rules",
                 RuleKitVersions.RULESET_SCHEMA_VERSION,
                 ExecutionMode.FIRST_MATCH,
                 objectMapper.nullNode(),
-                java.util.Arrays.asList(
+                Arrays.asList(
                         null,
                         new RuleDefinition(
-                                "has-null-condition",
+                                "missing-tree",
                                 1,
                                 true,
-                                new ConditionGroup(java.util.Arrays.asList((ConditionDefinition) null)),
+                                new ConditionGroup(null),   // tree=null → validator reports error
                                 new RuleThen(objectMapper.getNodeFactory().booleanNode(true))
                         )
                 )
@@ -212,7 +232,7 @@ class RuleKitAdvancedCapabilitiesTest {
         assertThat(result.valid()).isFalse();
         assertThat(result.errors())
                 .extracting(ValidationMessage::path)
-                .contains("$.rules[0]", "$.rules[1].when.all[0]");
+                .contains("$.rules[0]", "$.rules[1].when");
     }
 
     @Test
@@ -243,9 +263,11 @@ class RuleKitAdvancedCapabilitiesTest {
                       "id": "match",
                       "priority": 10,
                       "enabled": true,
-                      "when": { "all": [
-                        { "fieldRef": "count", "operator": "GTE", "value": 3 }
-                      ]},
+                      "when": { "tree": {
+                        "type": "group", "op": "AND", "children": [
+                          { "type": "leaf", "kind": "FIELD", "fieldRef": "count", "operator": "GTE", "value": 3 }
+                        ]
+                      }},
                       "then": { "response": { "ok": true } }
                     }
                   ]
@@ -253,7 +275,7 @@ class RuleKitAdvancedCapabilitiesTest {
                 """, RuleSet.class);
 
         CompiledRuleSet compiled = evaluator.compile(ruleSet);
-        EvaluationResult result = evaluator.evaluate(compiled, objectMapper.readTree("{ \"count\": 5 }"), TraceMode.VERBOSE);
+        EvaluationResult result = evaluator.evaluate(compiled, objectMapper.readTree("{ \"count\": 5 }"), TraceMode.COMPACT);
 
         assertThat(compiled.ruleSetId()).isEqualTo("compiled-rules");
         assertThat(compiled.rules()).hasSize(1);
@@ -275,37 +297,40 @@ class RuleKitAdvancedCapabilitiesTest {
                       "id": "first-rule",
                       "priority": 100,
                       "enabled": true,
-                      "when": { "all": [
-                        { "fieldRef": "plan", "operator": "EQ", "value": "premium" }
-                      ]},
+                      "when": { "tree": {
+                        "type": "group", "op": "AND", "children": [
+                          { "type": "leaf", "kind": "FIELD", "fieldRef": "plan", "operator": "EQ", "value": "premium" }
+                        ]
+                      }},
                       "then": { "response": "first" }
                     },
                     {
                       "id": "second-rule",
                       "priority": 10,
                       "enabled": true,
-                      "when": { "all": [
-                        { "fieldRef": "_gates.expensive.matched", "operator": "EQ", "value": true }
-                      ]},
+                      "when": { "tree": {
+                        "type": "group", "op": "AND", "children": [
+                          { "type": "leaf", "kind": "FIELD", "fieldRef": "_gates.expensive.matched", "operator": "EQ", "value": true }
+                        ]
+                      }},
                       "then": { "response": "second" }
                     }
                   ]
                 }
                 """, RuleSet.class);
-        AtomicInteger expensiveGateResolveCount = new AtomicInteger();
 
+        AtomicInteger expensiveGateResolveCount = new AtomicInteger();
         FactResolver resolver = (fieldRef, input) -> {
-            if (fieldRef.startsWith("_gates.")) {
-                expensiveGateResolveCount.incrementAndGet();
-            }
+            if (fieldRef.startsWith("_gates.")) expensiveGateResolveCount.incrementAndGet();
             return FieldValueResolver.resolve(input, fieldRef)
                     .map(ResolvedFact::found)
                     .orElseGet(ResolvedFact::missing);
         };
 
-        EvaluationResult result = evaluator.evaluate(ruleSet, objectMapper.readTree("{ \"plan\": \"premium\" }"), TraceMode.VERBOSE, resolver);
+        EvaluationResult result = evaluator.evaluate(
+                ruleSet, objectMapper.readTree("{ \"plan\": \"premium\" }"), TraceMode.COMPACT, resolver);
 
         assertThat(result.matchedRuleId()).isEqualTo("first-rule");
-        assertThat(expensiveGateResolveCount).hasValue(0);
+        assertThat(expensiveGateResolveCount).hasValue(0); // second rule never evaluated
     }
 }

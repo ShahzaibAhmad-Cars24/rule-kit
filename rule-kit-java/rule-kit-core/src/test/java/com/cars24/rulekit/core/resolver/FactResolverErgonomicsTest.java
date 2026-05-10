@@ -30,9 +30,9 @@ class FactResolverErgonomicsTest {
                       "id": "checkout-gate",
                       "priority": 10,
                       "enabled": true,
-                      "when": { "all": [
-                        { "fieldRef": "_gates.checkout.matched", "operator": "EQ", "value": true }
-                      ]},
+                      "when": { "tree": { "type": "group", "op": "AND", "children": [
+                        { "type": "leaf", "fieldRef": "_gates.checkout.matched", "operator": "EQ", "value": true }
+                      ]}},
                       "then": { "response": "open" }
                     }
                   ]

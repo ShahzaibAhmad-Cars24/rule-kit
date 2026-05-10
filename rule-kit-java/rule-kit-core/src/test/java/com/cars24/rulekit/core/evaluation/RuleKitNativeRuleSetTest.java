@@ -44,11 +44,11 @@ class RuleKitNativeRuleSetTest {
                       "id": "android-beta",
                       "priority": 100,
                       "enabled": true,
-                      "when": { "all": [
-                        { "kind": "FIELD", "fieldRef": "platform", "operator": "EQ", "value": "android" },
-                        { "kind": "SEGMENT", "segmentNames": ["beta-users"], "match": "ANY", "lookupRef": "userId" },
-                        { "kind": "DEPENDENCY", "ruleSetId": "tenant-a.checkout-enabled", "expect": "MATCHED" }
-                      ]},
+                      "when": { "tree": { "type": "group", "op": "AND", "children": [
+                        { "type": "leaf", "kind": "FIELD", "fieldRef": "platform", "operator": "EQ", "value": "android" },
+                        { "type": "leaf", "kind": "SEGMENT", "segmentNames": ["beta-users"], "match": "ANY", "lookupRef": "userId" },
+                        { "type": "leaf", "kind": "DEPENDENCY", "ruleSetId": "tenant-a.checkout-enabled", "expect": "MATCHED" }
+                      ]}},
                       "rollout": {
                         "percentage": 25,
                         "unitRef": "userId",
@@ -66,10 +66,17 @@ class RuleKitNativeRuleSetTest {
 
         assertThat(ruleSet.schemaVersion()).isEqualTo(RuleKitVersions.RULESET_SCHEMA_VERSION);
         assertThat(rule.rollout().percentage()).isEqualTo(25);
-        assertThat(rule.when().all()).extracting(ConditionDefinition::resolvedKind)
-                .containsExactly(ConditionKind.FIELD, ConditionKind.SEGMENT, ConditionKind.DEPENDENCY);
-        assertThat(rule.when().all().get(1).segmentNames()).containsExactly("beta-users");
-        assertThat(rule.when().all().get(2).expect()).isEqualTo(DependencyExpectation.MATCHED);
+        // Verify tree structure: root group with 3 children (FIELD, SEGMENT, DEPENDENCY)
+        assertThat(rule.when().tree()).isInstanceOf(com.cars24.rulekit.core.model.ConditionGroupNode.class);
+        var rootGroup = (com.cars24.rulekit.core.model.ConditionGroupNode) rule.when().tree();
+        assertThat(rootGroup.children()).hasSize(3);
+        assertThat(rootGroup.children().get(0)).isInstanceOf(com.cars24.rulekit.core.model.ConditionLeaf.class);
+        assertThat(rootGroup.children().get(1)).isInstanceOf(com.cars24.rulekit.core.model.ConditionLeaf.class);
+        assertThat(rootGroup.children().get(2)).isInstanceOf(com.cars24.rulekit.core.model.ConditionLeaf.class);
+        var segmentLeaf = (com.cars24.rulekit.core.model.ConditionLeaf) rootGroup.children().get(1);
+        var depLeaf = (com.cars24.rulekit.core.model.ConditionLeaf) rootGroup.children().get(2);
+        assertThat(segmentLeaf.segmentNames()).containsExactly("beta-users");
+        assertThat(depLeaf.expect()).isEqualTo(DependencyExpectation.MATCHED);
     }
 
     @Test
@@ -85,11 +92,11 @@ class RuleKitNativeRuleSetTest {
                       "id": "bad-rule",
                       "priority": 1,
                       "enabled": true,
-                      "when": { "all": [
-                        { "kind": "FIELD", "fieldRef": "age", "operator": "GT", "value": "abc" },
-                        { "kind": "SEGMENT", "segmentNames": [], "match": "ANY", "lookupRef": "userId" },
-                        { "kind": "DEPENDENCY", "ruleSetId": "", "expect": "MATCHED" }
-                      ]},
+                      "when": { "tree": { "type": "group", "op": "AND", "children": [
+                        { "type": "leaf", "kind": "FIELD", "fieldRef": "age", "operator": "GT", "value": "abc" },
+                        { "type": "leaf", "kind": "SEGMENT", "segmentNames": [], "match": "ANY", "lookupRef": "userId" },
+                        { "type": "leaf", "kind": "DEPENDENCY", "ruleSetId": "", "expect": "MATCHED" }
+                      ]}},
                       "rollout": { "percentage": 101, "unitRef": "userId", "algorithm": "MURMUR3_32_SALTED_V1", "bucketCount": 100 },
                       "then": { "response": true }
                     }
@@ -122,11 +129,11 @@ class RuleKitNativeRuleSetTest {
                       "id": "android-beta",
                       "priority": 100,
                       "enabled": true,
-                      "when": { "all": [
-                        { "kind": "FIELD", "fieldRef": "platform", "operator": "EQ", "value": "android" },
-                        { "kind": "SEGMENT", "segmentNames": ["beta-users", "vip-users"], "match": "ANY", "lookupRef": "userId" },
-                        { "kind": "DEPENDENCY", "ruleSetId": "tenant-a.checkout-enabled", "expect": "MATCHED" }
-                      ]},
+                      "when": { "tree": { "type": "group", "op": "AND", "children": [
+                        { "type": "leaf", "kind": "FIELD", "fieldRef": "platform", "operator": "EQ", "value": "android" },
+                        { "type": "leaf", "kind": "SEGMENT", "segmentNames": ["beta-users", "vip-users"], "match": "ANY", "lookupRef": "userId" },
+                        { "type": "leaf", "kind": "DEPENDENCY", "ruleSetId": "tenant-a.checkout-enabled", "expect": "MATCHED" }
+                      ]}},
                       "rollout": { "percentage": 100, "unitRef": "userId", "algorithm": "MURMUR3_32_SALTED_V1", "bucketCount": 100 },
                       "then": { "response": { "enabled": true } }
                     }
@@ -144,7 +151,7 @@ class RuleKitNativeRuleSetTest {
                       "id": "enabled-for-city",
                       "priority": 1,
                       "enabled": true,
-                      "when": { "all": [{ "kind": "FIELD", "fieldRef": "city", "operator": "EQ", "value": "Gurgaon" }] },
+                      "when": { "tree": { "type": "group", "op": "AND", "children": [{ "type": "leaf", "kind": "FIELD", "fieldRef": "city", "operator": "EQ", "value": "Gurgaon" }]} },
                       "then": { "response": true }
                     }
                   ]
@@ -200,7 +207,7 @@ class RuleKitNativeRuleSetTest {
                       "id": "cycle-rule",
                       "priority": 1,
                       "enabled": true,
-                      "when": { "all": [{ "kind": "DEPENDENCY", "ruleSetId": "cycle", "expect": "MATCHED" }] },
+                      "when": { "tree": { "type": "group", "op": "AND", "children": [{ "type": "leaf", "kind": "DEPENDENCY", "ruleSetId": "cycle", "expect": "MATCHED" }]} },
                       "then": { "response": true }
                     }
                   ]
@@ -229,7 +236,7 @@ class RuleKitNativeRuleSetTest {
                       "id": "never-included",
                       "priority": 1,
                       "enabled": true,
-                      "when": { "all": [{ "kind": "FIELD", "fieldRef": "city", "operator": "EQ", "value": "Gurgaon" }] },
+                      "when": { "tree": { "type": "group", "op": "AND", "children": [{ "type": "leaf", "kind": "FIELD", "fieldRef": "city", "operator": "EQ", "value": "Gurgaon" }]} },
                       "rollout": { "percentage": 0, "unitRef": "userId", "algorithm": "MURMUR3_32_SALTED_V1", "bucketCount": 100 },
                       "then": { "response": true }
                     }
@@ -261,7 +268,7 @@ class RuleKitNativeRuleSetTest {
                       "id": "needs-seed",
                       "priority": 1,
                       "enabled": true,
-                      "when": { "all": [{ "kind": "FIELD", "fieldRef": "city", "operator": "EQ", "value": "Gurgaon" }] },
+                      "when": { "tree": { "type": "group", "op": "AND", "children": [{ "type": "leaf", "kind": "FIELD", "fieldRef": "city", "operator": "EQ", "value": "Gurgaon" }]} },
                       "rollout": { "percentage": 100, "unitRef": "userId", "algorithm": "MURMUR3_32_SALTED_V1", "bucketCount": 100 },
                       "then": { "response": true }
                     }
@@ -292,10 +299,10 @@ class RuleKitNativeRuleSetTest {
                       "id": "lazy-rule",
                       "priority": 1,
                       "enabled": true,
-                      "when": { "all": [
-                        { "kind": "FIELD", "fieldRef": "city", "operator": "EQ", "value": "Gurgaon" },
-                        { "kind": "SEGMENT", "segmentNames": ["beta-users"], "match": "ANY", "lookupRef": "userId" }
-                      ]},
+                      "when": { "tree": { "type": "group", "op": "AND", "children": [
+                        { "type": "leaf", "kind": "FIELD", "fieldRef": "city", "operator": "EQ", "value": "Gurgaon" },
+                        { "type": "leaf", "kind": "SEGMENT", "segmentNames": ["beta-users"], "match": "ANY", "lookupRef": "userId" }
+                      ]}},
                       "rollout": { "percentage": 100, "unitRef": "userId", "algorithm": "MURMUR3_32_SALTED_V1", "bucketCount": 100 },
                       "then": { "response": true }
                     }
@@ -341,10 +348,10 @@ class RuleKitNativeRuleSetTest {
                       "id": "segment-rule",
                       "priority": 1,
                       "enabled": true,
-                      "when": { "all": [
-                        { "kind": "FIELD", "fieldRef": "platform", "operator": "EQ", "value": "android" },
-                        { "kind": "SEGMENT", "segmentNames": ["beta-users"], "match": "ALL", "lookupRef": "userId" }
-                      ]},
+                      "when": { "tree": { "type": "group", "op": "AND", "children": [
+                        { "type": "leaf", "kind": "FIELD", "fieldRef": "platform", "operator": "EQ", "value": "android" },
+                        { "type": "leaf", "kind": "SEGMENT", "segmentNames": ["beta-users"], "match": "ALL", "lookupRef": "userId" }
+                      ]}},
                       "then": { "response": true }
                     }
                   ]
@@ -381,7 +388,7 @@ class RuleKitNativeRuleSetTest {
                       "id": "zero-or-more",
                       "priority": 1,
                       "enabled": true,
-                      "when": { "all": [{ "kind": "FIELD", "fieldRef": "age", "operator": "GTE", "value": 0 }] },
+                      "when": { "tree": { "type": "group", "op": "AND", "children": [{ "type": "leaf", "kind": "FIELD", "fieldRef": "age", "operator": "GTE", "value": 0 }]} },
                       "then": { "response": true }
                     }
                   ]

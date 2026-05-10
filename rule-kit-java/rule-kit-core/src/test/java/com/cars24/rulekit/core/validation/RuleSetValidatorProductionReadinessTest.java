@@ -24,27 +24,27 @@ class RuleSetValidatorProductionReadinessTest {
                       "id": "missing-gt-value",
                       "priority": 30,
                       "enabled": true,
-                      "when": { "all": [
-                        { "fieldRef": "age", "operator": "GT" }
-                      ]},
+                      "when": { "tree": { "type": "group", "op": "AND", "children": [
+                        { "type": "leaf", "fieldRef": "age", "operator": "GT" }
+                      ]}},
                       "then": { "response": true }
                     },
                     {
                       "id": "missing-between-end",
                       "priority": 20,
                       "enabled": true,
-                      "when": { "all": [
-                        { "fieldRef": "age", "operator": "BETWEEN", "value": 18 }
-                      ]},
+                      "when": { "tree": { "type": "group", "op": "AND", "children": [
+                        { "type": "leaf", "fieldRef": "age", "operator": "BETWEEN", "value": 18 }
+                      ]}},
                       "then": { "response": true }
                     },
                     {
                       "id": "invalid-regex",
                       "priority": 10,
                       "enabled": true,
-                      "when": { "all": [
-                        { "fieldRef": "email", "operator": "MATCHES", "value": "[" }
-                      ]},
+                      "when": { "tree": { "type": "group", "op": "AND", "children": [
+                        { "type": "leaf", "fieldRef": "email", "operator": "MATCHES", "value": "[" }
+                      ]}},
                       "then": { "response": true }
                     }
                   ]
@@ -76,18 +76,18 @@ class RuleSetValidatorProductionReadinessTest {
                       "id": "invalid-number",
                       "priority": 20,
                       "enabled": true,
-                      "when": { "all": [
-                        { "fieldRef": "age", "operator": "GT", "value": "abc" }
-                      ]},
+                      "when": { "tree": { "type": "group", "op": "AND", "children": [
+                        { "type": "leaf", "fieldRef": "age", "operator": "GT", "value": "abc" }
+                      ]}},
                       "then": { "response": true }
                     },
                     {
                       "id": "reversed-range",
                       "priority": 10,
                       "enabled": true,
-                      "when": { "all": [
-                        { "fieldRef": "age", "operator": "BETWEEN", "value": 50, "valueTo": 18 }
-                      ]},
+                      "when": { "tree": { "type": "group", "op": "AND", "children": [
+                        { "type": "leaf", "fieldRef": "age", "operator": "BETWEEN", "value": 50, "valueTo": 18 }
+                      ]}},
                       "then": { "response": true }
                     }
                   ]
@@ -117,27 +117,27 @@ class RuleSetValidatorProductionReadinessTest {
                       "id": "legacy-alias",
                       "priority": 30,
                       "enabled": true,
-                      "when": { "all": [
-                        { "kind": "FIELD", "fieldRef": "age", "operator": "GREATER_THAN", "value": 18 }
-                      ]},
+                      "when": { "tree": { "type": "group", "op": "AND", "children": [
+                        { "type": "leaf", "kind": "FIELD", "fieldRef": "age", "operator": "GREATER_THAN", "value": 18 }
+                      ]}},
                       "then": { "response": true }
                     },
                     {
                       "id": "segment-with-operator",
                       "priority": 20,
                       "enabled": true,
-                      "when": { "all": [
-                        { "kind": "SEGMENT", "segmentNames": ["beta"], "match": "ANY", "lookupRef": "userId", "operator": "EQ" }
-                      ]},
+                      "when": { "tree": { "type": "group", "op": "AND", "children": [
+                        { "type": "leaf", "kind": "SEGMENT", "segmentNames": ["beta"], "match": "ANY", "lookupRef": "userId", "operator": "EQ" }
+                      ]}},
                       "then": { "response": true }
                     },
                     {
                       "id": "dependency-with-field",
                       "priority": 10,
                       "enabled": true,
-                      "when": { "all": [
-                        { "kind": "DEPENDENCY", "ruleSetId": "child", "expect": "MATCHED", "fieldRef": "gate" }
-                      ]},
+                      "when": { "tree": { "type": "group", "op": "AND", "children": [
+                        { "type": "leaf", "kind": "DEPENDENCY", "ruleSetId": "child", "expect": "MATCHED", "fieldRef": "gate" }
+                      ]}},
                       "then": { "response": true }
                     }
                   ]

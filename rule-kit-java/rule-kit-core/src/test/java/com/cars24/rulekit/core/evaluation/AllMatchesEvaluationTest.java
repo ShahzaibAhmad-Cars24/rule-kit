@@ -35,27 +35,27 @@ class AllMatchesEvaluationTest {
                   "id": "premium-discount",
                   "priority": 100,
                   "enabled": true,
-                  "when": { "all": [
-                    { "fieldRef": "cart.total", "operator": "GTE", "value": 5000 }
-                  ]},
+                  "when": { "tree": { "type": "group", "op": "AND", "children": [
+                    { "type": "leaf", "fieldRef": "cart.total", "operator": "GTE", "value": 5000 }
+                  ]}},
                   "then": { "response": { "discountPercent": 12, "badge": "PREMIUM" } }
                 },
                 {
                   "id": "standard-discount",
                   "priority": 50,
                   "enabled": true,
-                  "when": { "all": [
-                    { "fieldRef": "cart.total", "operator": "GTE", "value": 1000 }
-                  ]},
+                  "when": { "tree": { "type": "group", "op": "AND", "children": [
+                    { "type": "leaf", "fieldRef": "cart.total", "operator": "GTE", "value": 1000 }
+                  ]}},
                   "then": { "response": { "discountPercent": 5, "badge": "STANDARD" } }
                 },
                 {
                   "id": "new-user-bonus",
                   "priority": 10,
                   "enabled": true,
-                  "when": { "all": [
-                    { "fieldRef": "customer.isNew", "operator": "EQ", "value": true }
-                  ]},
+                  "when": { "tree": { "type": "group", "op": "AND", "children": [
+                    { "type": "leaf", "fieldRef": "customer.isNew", "operator": "EQ", "value": true }
+                  ]}},
                   "then": { "response": { "bonusCredits": 200 } }
                 }
               ]
@@ -152,18 +152,18 @@ class AllMatchesEvaluationTest {
                       "id": "active-rule",
                       "priority": 10,
                       "enabled": true,
-                      "when": { "all": [
-                        { "fieldRef": "x", "operator": "EQ", "value": 1 }
-                      ]},
+                      "when": { "tree": { "type": "group", "op": "AND", "children": [
+                        { "type": "leaf", "fieldRef": "x", "operator": "EQ", "value": 1 }
+                      ]}},
                       "then": { "response": { "val": 1 } }
                     },
                     {
                       "id": "disabled-rule",
                       "priority": 5,
                       "enabled": false,
-                      "when": { "all": [
-                        { "fieldRef": "x", "operator": "EQ", "value": 1 }
-                      ]},
+                      "when": { "tree": { "type": "group", "op": "AND", "children": [
+                        { "type": "leaf", "fieldRef": "x", "operator": "EQ", "value": 1 }
+                      ]}},
                       "then": { "response": { "val": 99 } }
                     }
                   ]
@@ -230,9 +230,9 @@ class AllMatchesEvaluationTest {
                       "id": "r1",
                       "priority": 10,
                       "enabled": true,
-                      "when": { "all": [
-                        { "fieldRef": "x", "operator": "EQ", "value": 1 }
-                      ]},
+                      "when": { "tree": { "type": "group", "op": "AND", "children": [
+                        { "type": "leaf", "fieldRef": "x", "operator": "EQ", "value": 1 }
+                      ]}},
                       "then": { "response": { "val": 1 } }
                     }
                   ]

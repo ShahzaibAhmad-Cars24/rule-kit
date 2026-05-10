@@ -2,6 +2,8 @@ package com.cars24.rulekit.core.evaluation;
 
 import com.cars24.rulekit.core.model.ConditionDefinition;
 import com.cars24.rulekit.core.model.ConditionGroup;
+import com.cars24.rulekit.core.model.ConditionGroupNode;
+import com.cars24.rulekit.core.model.ConditionLeaf;
 import com.cars24.rulekit.core.model.ExecutionMode;
 import com.cars24.rulekit.core.model.RuleDefinition;
 import com.cars24.rulekit.core.model.RuleKitVersions;
@@ -30,14 +32,17 @@ class CompiledRuleSetProductionReadinessTest {
         ObjectNode defaultResponse = objectMapper.createObjectNode().put("discount", 0);
         ObjectNode matchedResponse = objectMapper.createObjectNode().put("discount", 15);
 
-        List<ConditionDefinition> conditions = new ArrayList<>();
-        conditions.add(new ConditionDefinition("plan", "IN", allowedPlans, null));
+        ConditionLeaf leaf = new ConditionLeaf(
+                com.cars24.rulekit.core.model.ConditionKind.FIELD,
+                "plan", "IN", allowedPlans, null, null, null, null, null, null
+        );
+        ConditionGroupNode treeRoot = ConditionGroupNode.and(List.of(leaf));
 
         RuleDefinition rule = new RuleDefinition(
                 "gold-discount",
                 10,
                 true,
-                new ConditionGroup(conditions),
+                new ConditionGroup(treeRoot),
                 new RuleThen(matchedResponse)
         );
         List<RuleDefinition> rules = new ArrayList<>();
@@ -54,7 +59,6 @@ class CompiledRuleSetProductionReadinessTest {
         CompiledRuleSet compiled = evaluator.compile(ruleSet);
 
         rules.clear();
-        conditions.clear();
         allowedPlans.removeAll().add("silver");
         defaultResponse.put("discount", -1);
         matchedResponse.put("discount", 99);
