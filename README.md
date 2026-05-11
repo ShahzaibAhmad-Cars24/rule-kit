@@ -15,13 +15,16 @@ The current backend implementation provides:
 - RuleSet validation
 - typed RuleKit exceptions
 - reusable compiled RuleSets
+- compiled RuleSet dependency and segment metadata
 - lazy host-provided fact resolution
 - literal and escaped dotted field references
 - strict native v1 operator semantics
 - rule-level deterministic rollout bucketing
 - segment and dependency condition hooks
+- prefetched segment memberships and dependency results
 - strict unknown-field rejection for RuleSet payloads
 - verbose rollout/segment/dependency traces
+- lightweight evaluation stats for host-side perf attribution
 
 The SDK does not own persistence or product control-plane behavior. Host applications own drafts, published revisions, approvals, tenants, audit logs, rollback, cache, exposure logging, and storage technology.
 
@@ -102,6 +105,7 @@ For high-throughput execution:
 ```java
 ValidationResult validation = client.validate(ruleSet);
 CompiledRuleSet compiled = client.compile(ruleSet);
+CompiledRuleSetMetadata metadata = compiled.metadata();
 EvaluationResult result = client.evaluate(compiled, input, TraceMode.COMPACT);
 ```
 
@@ -122,12 +126,23 @@ For native v1 segment and dependency conditions:
 
 ```java
 EvaluationOptions options = EvaluationOptions.builder()
+        .prefetchedSegmentMembershipResolver(prefetchedSegmentResolver)
+        .dependencyResultResolver(dependencyResultResolver)
+        .dependencyRuleSetResolver(dependencyRuleSetResolver)
         .segmentResolver(segmentResolver)
-        .dependencyResolver(dependencyResolver)
         .build();
 
 EvaluationResult result = client.evaluate(compiled, input, TraceMode.VERBOSE, options);
 ```
+
+Dependency precedence is:
+
+- resolved `DependencyResult`
+- prefetched compiled dependency `CompiledRuleSet`
+- no dependency evaluation path outside those two inputs
+
+`EvaluationResult.stats()` exposes segment and dependency consult/cache/prefetch counts so host benchmarks can separate RuleKit traversal cost from host resolution cost.
+For segment conditions, RuleKit still resolves `lookupRef` first; the prefetched segment resolver is consulted with that resolved identity before falling back to the lazy `segmentResolver`.
 
 For context-aware lazy facts:
 

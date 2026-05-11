@@ -130,7 +130,8 @@ class RuleKitAdvancedCapabilitiesTest {
                       "enabled": true,
                       "when": { "tree": {
                         "type": "group", "op": "AND", "children": [
-                          { "type": "leaf", "kind": "FIELD", "fieldRef": "_gates.checkout-enabled.matched", "operator": "EQ", "value": true }
+                          { "type": "leaf", "kind": "FIELD", "fieldRef": "_gates.checkout-enabled.matched", "operator": "EQ", "value": true },
+                          { "type": "leaf", "kind": "FIELD", "fieldRef": "plan", "operator": "EQ", "value": "premium" }
                         ]
                       }},
                       "then": { "response": "enabled" }
@@ -139,6 +140,7 @@ class RuleKitAdvancedCapabilitiesTest {
                 }
                 """, RuleSet.class);
 
+        JsonNode input = objectMapper.readTree("{\"plan\":\"premium\"}");
         List<String> contexts = new ArrayList<>();
         FactResolver resolver = new FactResolver() {
             @Override
@@ -148,18 +150,23 @@ class RuleKitAdvancedCapabilitiesTest {
 
             @Override
             public ResolvedFact resolve(FactResolutionContext context) {
-                contexts.add(context.ruleSetId() + "/" + context.ruleId() + "/" + context.conditionIndex());
+                contexts.add(context.ruleSetId() + "/" + context.ruleId() + "/" + context.conditionIndex() + "/" + context.fieldRef());
                 if ("_gates.checkout-enabled.matched".equals(context.fieldRef())) {
                     return ResolvedFact.found(objectMapper.getNodeFactory().booleanNode(true));
                 }
-                return ResolvedFact.missing();
+                return FieldValueResolver.resolve(input, context.fieldRef())
+                        .map(ResolvedFact::found)
+                        .orElseGet(ResolvedFact::missing);
             }
         };
 
-        EvaluationResult result = evaluator.evaluate(ruleSet, objectMapper.readTree("{}"), TraceMode.COMPACT, resolver);
+        EvaluationResult result = evaluator.evaluate(ruleSet, input, TraceMode.COMPACT, resolver);
 
         assertThat(result.matchedRuleId()).isEqualTo("uses-context-resolver");
-        assertThat(contexts).containsExactly("context-rules/uses-context-resolver/0");
+        assertThat(contexts).containsExactly(
+                "context-rules/uses-context-resolver/0/_gates.checkout-enabled.matched",
+                "context-rules/uses-context-resolver/1/plan"
+        );
     }
 
     @Test

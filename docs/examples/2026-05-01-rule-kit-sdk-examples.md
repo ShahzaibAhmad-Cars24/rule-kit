@@ -265,16 +265,27 @@ RuleKit v1 supports host-owned segments and dependencies without owning segment 
 ```
 
 ```java
+CompiledRuleSetMetadata metadata = compiled.metadata();
+
 EvaluationOptions options = EvaluationOptions.builder()
         .factResolver(dynamicConfigFactResolver)
+        .prefetchedSegmentMembershipResolver(context -> Optional.of(SegmentMembershipResult.of(Map.of("beta-users", true))))
+        .dependencyResultResolver(context -> Optional.of(new DependencyResult(
+                "tenant-a.checkout-enabled",
+                "precomputed-match",
+                false
+        )))
+        .dependencyRuleSetResolver(context -> Optional.of(compiledCheckoutEnabledRuleSet))
         .segmentResolver(context -> SegmentMembershipResult.of(Map.of("beta-users", true)))
-        .dependencyResolver(context -> Optional.of(compiledCheckoutEnabledRuleSet))
         .build();
 
 EvaluationResult result = client.evaluate(compiled, input, TraceMode.VERBOSE, options);
 ```
 
+`metadata.referencedSegmentNames()` and `metadata.dependencyRuleSetIds()` let the host prefetch external inputs before evaluation.
+For segments, the prefetched resolver receives the resolved `lookupRef` identity, so host caches can stay keyed by the actual subject being checked.
 Verbose traces include condition kind, segment match details, dependency result details, and rollout bucket details.
+`result.stats()` reports how many segment and dependency references were consulted and whether they were served from prefetched, lazy-segment, or cached paths.
 Rollout resolves `tenantId`, `configName` or `configId`, `ruleId`, `splitSeed`, and the `unitRef` entity through the configured `FactResolver`; missing rollout salt or entity values fail with typed RuleKit exceptions.
 
 ## 11. Spring Boot Starter

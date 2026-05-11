@@ -163,7 +163,7 @@ class RuleKitNativeRuleSetTest {
                         "beta-users", true,
                         "vip-users", false
                 )))
-                .dependencyResolver(context -> Optional.of(compiledDependency))
+                .dependencyRuleSetResolver(context -> Optional.of(compiledDependency))
                 .build();
 
         EvaluationResult result = evaluator.evaluate(
@@ -215,7 +215,7 @@ class RuleKitNativeRuleSetTest {
                 """, RuleSet.class);
         CompiledRuleSet compiled = evaluator.compile(ruleSet);
         EvaluationOptions options = EvaluationOptions.builder()
-                .dependencyResolver(context -> Optional.of(compiled))
+                .dependencyRuleSetResolver(context -> Optional.of(compiled))
                 .build();
 
         assertThatThrownBy(() -> evaluator.evaluate(compiled, objectMapper.readTree("{}"), TraceMode.COMPACT, options))

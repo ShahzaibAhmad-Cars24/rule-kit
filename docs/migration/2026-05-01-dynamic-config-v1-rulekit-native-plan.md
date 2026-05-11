@@ -299,7 +299,7 @@ Example:
 EvaluationOptions options = EvaluationOptions.builder()
         .factResolver(dynamicConfigFactResolver)
         .segmentResolver(dynamicConfigSegmentResolver)
-        .dependencyResolver(dynamicConfigDependencyResolver)
+        .dependencyRuleSetResolver(dynamicConfigDependencyResolver)
         .build();
 
 EvaluationResult result = ruleKitClient.evaluate(

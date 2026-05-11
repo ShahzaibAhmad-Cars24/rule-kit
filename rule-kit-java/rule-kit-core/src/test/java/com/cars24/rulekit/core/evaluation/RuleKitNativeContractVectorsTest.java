@@ -106,7 +106,7 @@ class RuleKitNativeContractVectorsTest {
                 RuleSet dependencyRuleSet = objectMapper.convertValue(dependency, RuleSet.class);
                 dependencies.put(dependencyRuleSet.id(), evaluator.compile(dependencyRuleSet));
             }
-            builder.dependencyResolver(context -> Optional.ofNullable(dependencies.get(context.dependencyRuleSetId())));
+            builder.dependencyRuleSetResolver(context -> Optional.ofNullable(dependencies.get(context.dependencyRuleSetId())));
         }
 
         return builder.build();

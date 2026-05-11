@@ -23,11 +23,20 @@ public record EvaluationResult(
         boolean defaultUsed,
         JsonNode response,
         EvaluationTrace trace,
-        List<RuleMatch> matches
+        List<RuleMatch> matches,
+        EvaluationStats stats
 ) {
 
     /** Backward-compatible constructor used by FIRST_MATCH path (no matches list). */
     public EvaluationResult(String matchedRuleId, boolean defaultUsed, JsonNode response, EvaluationTrace trace) {
-        this(matchedRuleId, defaultUsed, response, trace, null);
+        this(matchedRuleId, defaultUsed, response, trace, null, null);
+    }
+
+    public EvaluationResult(String matchedRuleId,
+                            boolean defaultUsed,
+                            JsonNode response,
+                            EvaluationTrace trace,
+                            List<RuleMatch> matches) {
+        this(matchedRuleId, defaultUsed, response, trace, matches, null);
     }
 }

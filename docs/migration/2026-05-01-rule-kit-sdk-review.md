@@ -39,7 +39,7 @@ Because Dynamic Config is also pre-operational, there is no requirement to prese
 - `FIELD`, `SEGMENT`, and `DEPENDENCY` condition kinds.
 - Host-provided lazy `FactResolver`, with context-aware resolution through `FactResolver.contextual(...)`.
 - Host-provided `SegmentResolver` with `ANY` and `ALL` matching.
-- Host-provided `RuleSetDependencyResolver` with lazy dependency evaluation, per-evaluation caching, and cycle detection.
+- Host-provided `RuleSetDependencyResolver` for compiled dependency inputs, with per-evaluation caching and cycle detection.
 - Rule-level deterministic rollout bucketing with `MURMUR3_32_SALTED_V1`.
 - Rollout fact resolution through the configured `FactResolver`, including `tenantId`, `configName` or `configId`, `ruleId`, `splitSeed`, and `unitRef`.
 - Typed exceptions for validation failures, resolver failures, missing rollout facts, missing segment/dependency resolvers, and dependency cycles.
@@ -63,7 +63,7 @@ EvaluationResult result = ruleKitClient.evaluate(
         EvaluationOptions.builder()
                 .factResolver(dynamicConfigFactResolver)
                 .segmentResolver(dynamicConfigSegmentResolver)
-                .dependencyResolver(dynamicConfigDependencyResolver)
+                .dependencyRuleSetResolver(dynamicConfigDependencyResolver)
                 .build()
 );
 ```

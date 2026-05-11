@@ -13,6 +13,7 @@ import com.cars24.rulekit.core.operator.OperatorValueParser;
 import com.cars24.rulekit.core.operator.RuleKitOperator;
 import com.fasterxml.jackson.databind.JsonNode;
 
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.regex.Pattern;
 
@@ -24,6 +25,7 @@ public final class CompiledRuleSet {
     private final JsonNode defaultResponse;
     private final List<RuleDefinition> rules;
     private final List<CompiledRule> compiledRules;
+    private final CompiledRuleSetMetadata metadata;
 
     /** Defaults to FIRST_MATCH. */
     public CompiledRuleSet(String ruleSetId,
@@ -46,6 +48,7 @@ public final class CompiledRuleSet {
         this.compiledRules = this.rules.stream()
                 .map(CompiledRuleSet::compileRule)
                 .toList();
+        this.metadata = collectMetadata(this.rules);
     }
 
     public String ruleSetId()         { return ruleSetId; }
@@ -53,6 +56,7 @@ public final class CompiledRuleSet {
     public ExecutionMode executionMode() { return executionMode; }
     public JsonNode defaultResponse() { return deepCopy(defaultResponse); }
     public List<RuleDefinition> rules() { return copyRules(rules); }
+    public CompiledRuleSetMetadata metadata() { return metadata; }
     List<CompiledRule> compiledRules() { return compiledRules; }
 
     // -------------------------------------------------------------------------
@@ -159,5 +163,41 @@ public final class CompiledRuleSet {
 
     private static JsonNode deepCopy(JsonNode node) {
         return node == null ? null : node.deepCopy();
+    }
+
+    private static CompiledRuleSetMetadata collectMetadata(List<RuleDefinition> rules) {
+        LinkedHashSet<String> segmentNames = new LinkedHashSet<>();
+        LinkedHashSet<String> dependencyRuleSetIds = new LinkedHashSet<>();
+        if (rules != null) {
+            for (RuleDefinition rule : rules) {
+                if (rule == null || rule.when() == null) {
+                    continue;
+                }
+                collectMetadata(rule.when().rootNode(), segmentNames, dependencyRuleSetIds);
+            }
+        }
+        return new CompiledRuleSetMetadata(List.copyOf(segmentNames), List.copyOf(dependencyRuleSetIds));
+    }
+
+    private static void collectMetadata(ConditionNode node,
+                                        LinkedHashSet<String> segmentNames,
+                                        LinkedHashSet<String> dependencyRuleSetIds) {
+        if (node == null) {
+            return;
+        }
+        if (node instanceof ConditionLeaf leaf) {
+            ConditionDefinition definition = leaf.toConditionDefinition();
+            if (definition.resolvedKind() == ConditionKind.SEGMENT) {
+                segmentNames.addAll(definition.segmentNames());
+            } else if (definition.resolvedKind() == ConditionKind.DEPENDENCY && definition.ruleSetId() != null) {
+                dependencyRuleSetIds.add(definition.ruleSetId());
+            }
+            return;
+        }
+        if (node instanceof ConditionGroupNode group && group.children() != null) {
+            for (ConditionNode child : group.children()) {
+                collectMetadata(child, segmentNames, dependencyRuleSetIds);
+            }
+        }
     }
 }

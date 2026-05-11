@@ -136,14 +136,14 @@ class RuleKitEvaluatorErrorPathTest {
                         assertThat(error.code()).isEqualTo(RuleKitExceptionCode.DEPENDENCY_RESOLVER_NOT_CONFIGURED));
 
         EvaluationOptions missingDependency = EvaluationOptions.builder()
-                .dependencyResolver(context -> java.util.Optional.empty())
+                .dependencyRuleSetResolver(context -> java.util.Optional.empty())
                 .build();
         assertThatThrownBy(() -> evaluator.evaluate(dependencyRuleSet, objectMapper.readTree("{}"), TraceMode.COMPACT, missingDependency))
                 .isInstanceOfSatisfying(RuleKitEvaluationException.class, error ->
                         assertThat(error.code()).isEqualTo(RuleKitExceptionCode.RULESET_NOT_FOUND));
 
         EvaluationOptions failingDependency = EvaluationOptions.builder()
-                .dependencyResolver(context -> { throw new IllegalStateException("dependency exploded"); })
+                .dependencyRuleSetResolver(context -> { throw new IllegalStateException("dependency exploded"); })
                 .build();
         assertThatThrownBy(() -> evaluator.evaluate(dependencyRuleSet, objectMapper.readTree("{}"), TraceMode.COMPACT, failingDependency))
                 .isInstanceOfSatisfying(RuleKitEvaluationException.class, error ->

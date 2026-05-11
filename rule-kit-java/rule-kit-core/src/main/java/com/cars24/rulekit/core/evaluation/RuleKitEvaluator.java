@@ -126,7 +126,9 @@ public class RuleKitEvaluator {
                         rule.source().then() != null && rule.source().then().response() != null
                                 ? copy(rule.source().then().response())
                                 : NullNode.getInstance(),
-                        trace(traceMode, ruleSet, evaluatedRuleCount, ruleTraces)
+                        trace(traceMode, ruleSet, evaluatedRuleCount, ruleTraces),
+                        null,
+                        session.stats()
                 );
             }
         }
@@ -135,7 +137,9 @@ public class RuleKitEvaluator {
                 null,
                 true,
                 ruleSet.defaultResponse() != null ? copy(ruleSet.defaultResponse()) : NullNode.getInstance(),
-                trace(traceMode, ruleSet, evaluatedRuleCount, ruleTraces)
+                trace(traceMode, ruleSet, evaluatedRuleCount, ruleTraces),
+                null,
+                session.stats()
         );
     }
 
@@ -178,7 +182,8 @@ public class RuleKitEvaluator {
                     true,
                     ruleSet.defaultResponse() != null ? copy(ruleSet.defaultResponse()) : NullNode.getInstance(),
                     evalTrace,
-                    List.of()
+                    List.of(),
+                    session.stats()
             );
         }
 
@@ -189,7 +194,8 @@ public class RuleKitEvaluator {
                 false,
                 primary.response(),
                 evalTrace,
-                List.copyOf(matches)
+                List.copyOf(matches),
+                session.stats()
         );
     }
 
@@ -230,12 +236,13 @@ public class RuleKitEvaluator {
                                         EvaluationSession session) {
         // Collect condition traces during tree traversal (only in VERBOSE mode)
         List<ConditionTrace> conditionTraces = traceMode == TraceMode.VERBOSE ? new ArrayList<>() : null;
+        ConditionCounter conditionCounter = new ConditionCounter();
 
         ConditionNode rootNode = rule.source().when() != null ? rule.source().when().rootNode() : null;
 
         // Evaluate either the explicit tree or the legacy flat "all" list normalized into an AND tree.
         boolean treeMatched = rootNode != null
-                ? evaluateConditionNode(rootNode, ruleSet, rule.source(), input, options, traceMode, session, conditionTraces)
+                ? evaluateConditionNode(rootNode, ruleSet, rule.source(), input, options, traceMode, session, conditionTraces, conditionCounter)
                 : true; // no conditions → always match
 
         RolloutTrace rolloutTrace = null;
@@ -259,6 +266,14 @@ public class RuleKitEvaluator {
     private record ConditionEvaluation(boolean matched, ConditionTrace trace) {
     }
 
+    private static final class ConditionCounter {
+        private int value;
+
+        int next() {
+            return value++;
+        }
+    }
+
     // -------------------------------------------------------------------------
     // Condition tree evaluation
     // -------------------------------------------------------------------------
@@ -274,11 +289,12 @@ public class RuleKitEvaluator {
                                           EvaluationOptions options,
                                           TraceMode traceMode,
                                           EvaluationSession session,
-                                          List<ConditionTrace> traces) {
+                                          List<ConditionTrace> traces,
+                                          ConditionCounter conditionCounter) {
         if (node instanceof ConditionLeaf leaf) {
-            return evaluateLeafNode(leaf, ruleSet, rule, input, options, traceMode, session, traces);
+            return evaluateLeafNode(leaf, ruleSet, rule, input, options, traceMode, session, traces, conditionCounter);
         } else if (node instanceof ConditionGroupNode group) {
-            return evaluateGroupNode(group, ruleSet, rule, input, options, traceMode, session, traces);
+            return evaluateGroupNode(group, ruleSet, rule, input, options, traceMode, session, traces, conditionCounter);
         } else {
             throw new IllegalArgumentException("Unknown ConditionNode type: " + node.getClass());
         }
@@ -291,10 +307,11 @@ public class RuleKitEvaluator {
                                      EvaluationOptions options,
                                      TraceMode traceMode,
                                      EvaluationSession session,
-                                     List<ConditionTrace> traces) {
+                                     List<ConditionTrace> traces,
+                                     ConditionCounter conditionCounter) {
         ConditionDefinition condition = leaf.toConditionDefinition();
         CompiledCondition compiled = CompiledRuleSet.compileCondition(condition);
-        ConditionEvaluation eval = evaluateCondition(ruleSet, rule, 0, compiled, input, options, traceMode, session);
+        ConditionEvaluation eval = evaluateCondition(ruleSet, rule, conditionCounter.next(), compiled, input, options, traceMode, session);
         if (traces != null && eval.trace() != null) {
             traces.add(eval.trace());
         }
@@ -308,14 +325,15 @@ public class RuleKitEvaluator {
                                       EvaluationOptions options,
                                       TraceMode traceMode,
                                       EvaluationSession session,
-                                      List<ConditionTrace> traces) {
+                                      List<ConditionTrace> traces,
+                                      ConditionCounter conditionCounter) {
         if (group.children() == null || group.children().isEmpty()) {
             return true; // empty group matches by default
         }
 
         if (group.op() == LogicalOp.OR) {
             for (ConditionNode child : group.children()) {
-                if (evaluateConditionNode(child, ruleSet, rule, input, options, traceMode, session, traces)) {
+                if (evaluateConditionNode(child, ruleSet, rule, input, options, traceMode, session, traces, conditionCounter)) {
                     return true; // short-circuit on first match
                 }
             }
@@ -323,7 +341,7 @@ public class RuleKitEvaluator {
         } else {
             // AND (default)
             for (ConditionNode child : group.children()) {
-                if (!evaluateConditionNode(child, ruleSet, rule, input, options, traceMode, session, traces)) {
+                if (!evaluateConditionNode(child, ruleSet, rule, input, options, traceMode, session, traces, conditionCounter)) {
                     return false; // short-circuit on first failure
                 }
             }
@@ -343,7 +361,7 @@ public class RuleKitEvaluator {
                                                   EvaluationSession session) {
         return switch (compiledCondition.source().resolvedKind()) {
             case FIELD -> evaluateFieldCondition(ruleSet, rule, conditionIndex, compiledCondition, input, options, traceMode);
-            case SEGMENT -> evaluateSegmentCondition(ruleSet, rule, conditionIndex, compiledCondition.source(), input, options, traceMode);
+            case SEGMENT -> evaluateSegmentCondition(ruleSet, rule, conditionIndex, compiledCondition.source(), input, options, traceMode, session);
             case DEPENDENCY -> evaluateDependencyCondition(ruleSet, rule, conditionIndex, compiledCondition.source(), input, options, traceMode, session);
         };
     }
@@ -386,13 +404,18 @@ public class RuleKitEvaluator {
                                                          ConditionDefinition condition,
                                                          JsonNode input,
                                                          EvaluationOptions options,
-                                                         TraceMode traceMode) {
+                                                         TraceMode traceMode,
+                                                         EvaluationSession session) {
+        session.recordSegmentReferenceConsulted();
+
         if (options.segmentResolver() == null) {
-            throw new RuleKitEvaluationException(
-                    RuleKitExceptionCode.SEGMENT_RESOLVER_NOT_CONFIGURED,
-                    "SegmentResolver is required for segment condition in ruleId=" + rule.id(),
-                    null
-            );
+            if (options.prefetchedSegmentMembershipResolver() == null) {
+                throw new RuleKitEvaluationException(
+                        RuleKitExceptionCode.SEGMENT_RESOLVER_NOT_CONFIGURED,
+                        "SegmentResolver is required for segment condition in ruleId=" + rule.id(),
+                        null
+                );
+            }
         }
 
         ResolvedFact resolvedLookup = resolveReference(
@@ -428,9 +451,16 @@ public class RuleKitEvaluator {
             );
         }
 
-        SegmentMembershipResult result;
-        try {
-            result = options.segmentResolver().resolve(new SegmentResolutionContext(
+        EvaluationSession.SegmentCacheKey segmentKey = session.segmentKey(
+                condition.lookupRef(),
+                lookupValue.get().toString(),
+                condition.segmentNames()
+        );
+        SegmentMembershipResult result = session.cachedSegment(segmentKey);
+        if (result != null) {
+            session.recordCachedSegmentHit();
+        } else {
+            SegmentResolutionContext context = new SegmentResolutionContext(
                     ruleSet.ruleSetId(),
                     rule.id(),
                     conditionIndex,
@@ -440,16 +470,34 @@ public class RuleKitEvaluator {
                     condition.match(),
                     input,
                     condition
-            ));
-        } catch (RuntimeException e) {
-            throw new RuleKitEvaluationException(
-                    RuleKitExceptionCode.RESOLVER_FAILED,
-                    "Segment resolver failed for ruleId=" + rule.id() + ", conditionIndex=" + conditionIndex,
-                    e
             );
+
+            result = resolvePrefetchedSegmentMembership(context, rule, conditionIndex, options);
+            if (result != null) {
+                session.recordPrefetchedSegmentHit();
+            } else {
+                if (options.segmentResolver() == null) {
+                    throw new RuleKitEvaluationException(
+                            RuleKitExceptionCode.SEGMENT_RESOLVER_NOT_CONFIGURED,
+                            "SegmentResolver is required for segment condition in ruleId=" + rule.id(),
+                            null
+                    );
+                }
+                try {
+                    result = options.segmentResolver().resolve(context);
+                } catch (RuntimeException e) {
+                    throw new RuleKitEvaluationException(
+                            RuleKitExceptionCode.RESOLVER_FAILED,
+                            "Segment resolver failed for ruleId=" + rule.id() + ", conditionIndex=" + conditionIndex,
+                            e
+                    );
+                }
+                session.recordLazySegmentResolution();
+            }
+            result = result != null ? result : SegmentMembershipResult.of(java.util.Map.of());
+            session.cacheSegment(segmentKey, result);
         }
-        SegmentMembershipResult resolvedResult = result != null ? result : SegmentMembershipResult.of(java.util.Map.of());
-        boolean matched = resolvedResult.matches(condition);
+        boolean matched = result.matches(condition);
 
         return new ConditionEvaluation(
                 matched,
@@ -465,7 +513,7 @@ public class RuleKitEvaluator {
                                 true,
                                 false,
                                 null,
-                                segmentDetails(condition, resolvedResult)
+                                segmentDetails(condition, result)
                         )
                         : null
         );
@@ -479,20 +527,39 @@ public class RuleKitEvaluator {
                                                             EvaluationOptions options,
                                                             TraceMode traceMode,
                                                             EvaluationSession session) {
-        if (options.dependencyResolver() == null) {
-            throw new RuleKitEvaluationException(
-                    RuleKitExceptionCode.DEPENDENCY_RESOLVER_NOT_CONFIGURED,
-                    "RuleSetDependencyResolver is required for dependency condition in ruleId=" + rule.id(),
-                    null
-            );
-        }
+        session.recordDependencyReferenceConsulted();
 
         DependencyResult dependencyResult = session.cachedDependency(condition.ruleSetId());
-        if (dependencyResult == null) {
-            CompiledRuleSet dependency = resolveDependency(ruleSet, rule, conditionIndex, condition, input, options);
-            EvaluationResult dependencyEvaluation = evaluate(dependency, input, TraceMode.COMPACT, options, session);
-            dependencyResult = DependencyResult.from(dependencyEvaluation, dependency.ruleSetId());
-            session.cacheDependency(condition.ruleSetId(), dependencyResult);
+        if (dependencyResult != null) {
+            session.recordCachedDependencyHit();
+        } else {
+            DependencyResolutionContext context = new DependencyResolutionContext(
+                    ruleSet.ruleSetId(),
+                    rule.id(),
+                    conditionIndex,
+                    condition.ruleSetId(),
+                    input,
+                    condition
+            );
+
+            dependencyResult = resolveDependencyResult(context, rule, conditionIndex, options);
+            if (dependencyResult != null) {
+                session.recordPrefetchedDependencyResultHit();
+                session.cacheDependency(condition.ruleSetId(), dependencyResult);
+            } else {
+                if (options.dependencyRuleSetResolver() == null) {
+                    throw new RuleKitEvaluationException(
+                            RuleKitExceptionCode.DEPENDENCY_RESOLVER_NOT_CONFIGURED,
+                            "RuleSetDependencyResolver is required for dependency condition in ruleId=" + rule.id(),
+                            null
+                    );
+                }
+                CompiledRuleSet dependency = resolveDependency(context, rule, conditionIndex, options);
+                session.recordPrefetchedDependencyRuleSetHit();
+                EvaluationResult dependencyEvaluation = evaluate(dependency, input, TraceMode.COMPACT, options, session);
+                dependencyResult = DependencyResult.from(dependencyEvaluation, dependency.ruleSetId());
+                session.cacheDependency(condition.ruleSetId(), dependencyResult);
+            }
         }
         boolean matched = dependencyResult.satisfies(condition.expect());
 
@@ -516,24 +583,55 @@ public class RuleKitEvaluator {
         );
     }
 
-    private CompiledRuleSet resolveDependency(CompiledRuleSet ruleSet,
+    private SegmentMembershipResult resolvePrefetchedSegmentMembership(SegmentResolutionContext context,
+                                                                       RuleDefinition rule,
+                                                                       int conditionIndex,
+                                                                       EvaluationOptions options) {
+        if (options.prefetchedSegmentMembershipResolver() == null) {
+            return null;
+        }
+        try {
+            return options.prefetchedSegmentMembershipResolver()
+                    .resolve(context)
+                    .orElse(null);
+        } catch (RuntimeException e) {
+            throw new RuleKitEvaluationException(
+                    RuleKitExceptionCode.RESOLVER_FAILED,
+                    "Prefetched segment resolver failed for ruleId=" + rule.id() + ", conditionIndex=" + conditionIndex,
+                    e
+            );
+        }
+    }
+
+    private DependencyResult resolveDependencyResult(DependencyResolutionContext context,
+                                                     RuleDefinition rule,
+                                                     int conditionIndex,
+                                                     EvaluationOptions options) {
+        if (options.dependencyResultResolver() == null) {
+            return null;
+        }
+        try {
+            return options.dependencyResultResolver()
+                    .resolve(context)
+                    .orElse(null);
+        } catch (RuntimeException e) {
+            throw new RuleKitEvaluationException(
+                    RuleKitExceptionCode.RESOLVER_FAILED,
+                    "Dependency result resolver failed for ruleId=" + rule.id() + ", conditionIndex=" + conditionIndex,
+                    e
+            );
+        }
+    }
+
+    private CompiledRuleSet resolveDependency(DependencyResolutionContext context,
                                               RuleDefinition rule,
                                               int conditionIndex,
-                                              ConditionDefinition condition,
-                                              JsonNode input,
                                               EvaluationOptions options) {
         try {
-            return options.dependencyResolver().resolve(new DependencyResolutionContext(
-                            ruleSet.ruleSetId(),
-                            rule.id(),
-                            conditionIndex,
-                            condition.ruleSetId(),
-                            input,
-                            condition
-                    ))
+            return options.dependencyRuleSetResolver().resolve(context)
                     .orElseThrow(() -> new RuleKitEvaluationException(
                             RuleKitExceptionCode.RULESET_NOT_FOUND,
-                            "Dependency RuleSet not found: " + condition.ruleSetId(),
+                            "Dependency RuleSet not found: " + context.dependencyRuleSetId(),
                             null
                     ));
         } catch (RuleKitEvaluationException e) {
